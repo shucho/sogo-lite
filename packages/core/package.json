@@ -1,6 +1,6 @@
 {
 	"name": "sogo-db-core",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"description": "Core types and utilities for Sogo DB — Notion-style databases as .db.json files",
 	"type": "module",
 	"license": "MIT",
