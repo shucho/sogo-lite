@@ -1,5 +1,7 @@
 # Sogo Lite
 
+## Note: This is work based on the idea of [adamking77](https://github.com/adamking77) who first suggested this idea to me.
+
 Notion-style databases inside VS Code. Create, view, and edit `.db.json` files as interactive tables, kanban boards, calendars, galleries, and lists — right in your editor.
 
 Pair it with the MCP server to give AI agents (Claude, Cursor, Copilot) full CRUD access to the same databases.
