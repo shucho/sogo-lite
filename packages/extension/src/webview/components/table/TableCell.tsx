@@ -8,8 +8,9 @@
  */
 
 import type { Database, DBRecord, Field } from 'sogo-db-core';
-import { getFieldDisplayValue, getStatusColor, getFieldOptionColor } from 'sogo-db-core';
+import { getFieldDisplayValue, resolveStatusColor, resolveFieldOptionColor, resolveRelationColor } from 'sogo-db-core';
 import { Badge } from '../shared/Badge.js';
+import { useThemeKind } from '../../hooks/useThemeColors.js';
 
 interface TableCellProps {
 	record: DBRecord;
@@ -20,6 +21,7 @@ interface TableCellProps {
 }
 
 export function TableCell({ record, field, database, relationTitles, onStartEdit }: TableCellProps) {
+	const theme = useThemeKind();
 	const value = record[field.id];
 	const displayValue = getFieldDisplayValue(record, field.id, database.schema, database);
 
@@ -49,13 +51,13 @@ export function TableCell({ record, field, database, relationTitles, onStartEdit
 			);
 		case 'status':
 			return displayValue ? (
-				<Badge label={displayValue} color={getStatusColor(displayValue)} onClick={handleClick} />
+				<Badge label={displayValue} color={resolveStatusColor(displayValue, theme)} onClick={handleClick} />
 			) : (
 				<span className="cursor-pointer" style={{ opacity: 0.25 }} onClick={handleClick}>&mdash;</span>
 			);
 		case 'select':
 			return displayValue ? (
-				<Badge label={displayValue} color={getFieldOptionColor(field, displayValue)} onClick={handleClick} />
+				<Badge label={displayValue} color={resolveFieldOptionColor(field, displayValue, theme)} onClick={handleClick} />
 			) : (
 				<span className="cursor-pointer" style={{ opacity: 0.25 }} onClick={handleClick}>&mdash;</span>
 			);
@@ -64,7 +66,7 @@ export function TableCell({ record, field, database, relationTitles, onStartEdit
 			return (
 				<div className="flex gap-1 flex-wrap cursor-pointer" onClick={handleClick}>
 					{values.map((v) => (
-						<Badge key={v} label={v} color={getFieldOptionColor(field, v)} />
+						<Badge key={v} label={v} color={resolveFieldOptionColor(field, v, theme)} />
 					))}
 					{values.length === 0 && <span style={{ opacity: 0.25 }}>&mdash;</span>}
 				</div>
@@ -75,7 +77,7 @@ export function TableCell({ record, field, database, relationTitles, onStartEdit
 			return (
 				<div className="flex gap-1 flex-wrap">
 					{ids.map((id) => (
-						<Badge key={id} label={relationTitles?.[id] ?? id.slice(0, 8)} />
+						<Badge key={id} label={relationTitles?.[id] ?? id.slice(0, 8)} color={resolveRelationColor(relationTitles?.[id] ?? id, theme)} />
 					))}
 					{ids.length === 0 && <span style={{ opacity: 0.25 }}>&mdash;</span>}
 				</div>

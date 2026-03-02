@@ -9,6 +9,7 @@
 
 import { useState } from 'react';
 import { useDatabase } from './hooks/useDatabase.js';
+import { ThemeKindProvider } from './hooks/useThemeColors.js';
 import { ViewSwitcher } from './components/ViewSwitcher.js';
 import { Toolbar } from './components/Toolbar.js';
 import { TableView } from './components/table/TableView.js';
@@ -56,6 +57,7 @@ export function App() {
 	}
 
 	return (
+		<ThemeKindProvider>
 		<div className="flex flex-col h-screen" style={{ color: 'var(--vscode-foreground)' }}>
 			<div className="flex items-center justify-between px-3 py-1">
 				<h1 className="text-sm font-semibold truncate">{database.name}</h1>
@@ -99,5 +101,6 @@ export function App() {
 				/>
 			)}
 		</div>
+		</ThemeKindProvider>
 	);
 }

@@ -14,8 +14,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { marked } from 'marked';
 import type { Database, DBRecord, Field } from 'sogo-db-core';
-import { STATUS_OPTIONS, getStatusColor, getFieldOptionColor } from 'sogo-db-core';
+import { STATUS_OPTIONS, resolveStatusColor, resolveFieldOptionColor, resolveRelationColor } from 'sogo-db-core';
 import { postCommand } from '../../hooks/useVSCodeApi.js';
+import { useThemeKind } from '../../hooks/useThemeColors.js';
 import { ConfirmDialog } from '../shared/ConfirmDialog.js';
 import { Badge } from '../shared/Badge.js';
 import { PickerDropdown } from '../shared/PickerDropdown.js';
@@ -267,6 +268,7 @@ function PeekFieldInput({
 	relationTitles?: Record<string, string>;
 	onChange: (value: string | number | boolean | string[] | null) => void;
 }) {
+	const theme = useThemeKind();
 	switch (field.type) {
 		case 'text':
 			return (
@@ -327,7 +329,7 @@ function PeekFieldInput({
 				<OptionPicker
 					options={[...STATUS_OPTIONS]}
 					value={(value as string) ?? null}
-					getColor={getStatusColor}
+					getColor={(opt) => resolveStatusColor(opt, theme)}
 					onChange={(v) => onChange(v)}
 				/>
 			);
@@ -336,7 +338,7 @@ function PeekFieldInput({
 				<OptionPicker
 					options={field.options ?? []}
 					value={(value as string) ?? null}
-					getColor={(opt) => getFieldOptionColor(field, opt)}
+					getColor={(opt) => resolveFieldOptionColor(field, opt, theme)}
 					onChange={(v) => onChange(v)}
 				/>
 			);
@@ -346,7 +348,7 @@ function PeekFieldInput({
 				<MultiSelectPicker
 					options={field.options ?? []}
 					selected={selected}
-					getColor={(opt) => getFieldOptionColor(field, opt)}
+					getColor={(opt) => resolveFieldOptionColor(field, opt, theme)}
 					onChange={onChange}
 				/>
 			);
@@ -359,7 +361,7 @@ function PeekFieldInput({
 			return (
 				<div className="flex flex-wrap gap-1">
 					{ids.map((id) => (
-						<Badge key={id} label={relationTitles?.[id] ?? id.slice(0, 8)} />
+						<Badge key={id} label={relationTitles?.[id] ?? id.slice(0, 8)} color={resolveRelationColor(relationTitles?.[id] ?? id, theme)} />
 					))}
 				</div>
 			);

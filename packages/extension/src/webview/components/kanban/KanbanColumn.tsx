@@ -9,7 +9,8 @@
 
 import { useDroppable } from '@dnd-kit/core';
 import type { Database, DBRecord, Field } from 'sogo-db-core';
-import { getStatusColor, getFieldOptionColor } from 'sogo-db-core';
+import { resolveStatusColor, resolveFieldOptionColor } from 'sogo-db-core';
+import { useThemeKind } from '../../hooks/useThemeColors.js';
 import { KanbanCard } from './KanbanCard.js';
 
 interface KanbanColumnProps {
@@ -23,11 +24,12 @@ interface KanbanColumnProps {
 
 export function KanbanColumn({ columnValue, label, records, groupField, database, onOpenRecord }: KanbanColumnProps) {
 	const { setNodeRef, isOver } = useDroppable({ id: columnValue });
+	const theme = useThemeKind();
 
 	const headerColor =
 		groupField.type === 'status'
-			? getStatusColor(label)
-			: getFieldOptionColor(groupField, label);
+			? resolveStatusColor(label, theme)
+			: resolveFieldOptionColor(groupField, label, theme);
 
 	return (
 		<div

@@ -9,9 +9,10 @@
 
 import { useState, useRef, useEffect } from 'react';
 import type { Database, DBRecord, Field } from 'sogo-db-core';
-import { STATUS_OPTIONS, getStatusColor, getFieldOptionColor } from 'sogo-db-core';
+import { STATUS_OPTIONS, resolveStatusColor, resolveFieldOptionColor } from 'sogo-db-core';
 import { Badge } from '../shared/Badge.js';
 import { PickerDropdown } from '../shared/PickerDropdown.js';
+import { useThemeKind } from '../../hooks/useThemeColors.js';
 
 interface InlineEditorProps {
 	record: DBRecord;
@@ -22,6 +23,7 @@ interface InlineEditorProps {
 }
 
 export function InlineEditor({ record, field, onSave, onCancel }: InlineEditorProps) {
+	const theme = useThemeKind();
 	const currentValue = record[field.id];
 	const inputRef = useRef<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(null);
 
@@ -102,7 +104,7 @@ export function InlineEditor({ record, field, onSave, onCancel }: InlineEditorPr
 				<InlinePillPicker
 					options={[...STATUS_OPTIONS]}
 					value={(currentValue as string) ?? null}
-					getColor={getStatusColor}
+					getColor={(opt) => resolveStatusColor(opt, theme)}
 					onSave={onSave}
 					onCancel={onCancel}
 				/>
@@ -113,7 +115,7 @@ export function InlineEditor({ record, field, onSave, onCancel }: InlineEditorPr
 				<InlinePillPicker
 					options={field.options ?? []}
 					value={(currentValue as string) ?? null}
-					getColor={(opt) => getFieldOptionColor(field, opt)}
+					getColor={(opt) => resolveFieldOptionColor(field, opt, theme)}
 					onSave={onSave}
 					onCancel={onCancel}
 				/>
@@ -126,7 +128,7 @@ export function InlineEditor({ record, field, onSave, onCancel }: InlineEditorPr
 				<InlineMultiPillPicker
 					options={options}
 					selected={selected}
-					getColor={(opt) => getFieldOptionColor(field, opt)}
+					getColor={(opt) => resolveFieldOptionColor(field, opt, theme)}
 					onSave={onSave}
 					onCancel={onCancel}
 				/>
