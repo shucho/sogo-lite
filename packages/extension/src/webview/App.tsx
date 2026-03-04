@@ -7,8 +7,9 @@
  * ---
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDatabase } from './hooks/useDatabase.js';
+import type { HostMessage } from './protocol.js';
 import { ViewSwitcher } from './components/ViewSwitcher.js';
 import { Toolbar } from './components/Toolbar.js';
 import { TableView } from './components/table/TableView.js';
@@ -22,9 +23,19 @@ import { Spinner } from './components/shared/Spinner.js';
 import { EmptyState } from './components/shared/EmptyState.js';
 
 export function App() {
-	const { database, activeView, processedRecords, relationTitles, loading } = useDatabase();
+	const { database, activeView, processedRecords, relationTitles, databaseCatalog, syncStatus, loading } = useDatabase();
 	const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 	const [showSchemaEditor, setShowSchemaEditor] = useState(false);
+
+	useEffect(() => {
+		function handleHostMessage(event: MessageEvent<HostMessage>) {
+			if (event.data.type === 'open-record-ui') {
+				setEditingRecordId(event.data.recordId);
+			}
+		}
+		window.addEventListener('message', handleHostMessage);
+		return () => window.removeEventListener('message', handleHostMessage);
+	}, []);
 
 	if (loading) return <Spinner />;
 	if (!database) return <EmptyState title="No database loaded" />;
@@ -41,7 +52,16 @@ export function App() {
 
 		switch (activeView.type) {
 			case 'table':
-				return <TableView database={database} view={activeView} records={processedRecords} relationTitles={relationTitles} onOpenRecord={onOpenRecord} />;
+				return (
+					<TableView
+						database={database}
+						view={activeView}
+						records={processedRecords}
+						relationTitles={relationTitles}
+						databaseCatalog={databaseCatalog}
+						onOpenRecord={onOpenRecord}
+					/>
+				);
 			case 'kanban':
 				return <KanbanView database={database} view={activeView} records={processedRecords} relationTitles={relationTitles} onOpenRecord={onOpenRecord} />;
 			case 'calendar':
@@ -56,37 +76,28 @@ export function App() {
 	}
 
 	return (
-		<div className="flex flex-col h-screen" style={{ color: 'var(--vscode-foreground)' }}>
-			<div className="flex items-center justify-between px-3 py-1">
-				<h1 className="text-sm font-semibold truncate">{database.name}</h1>
-				<button
-					className="text-xs opacity-50 hover:opacity-100"
-					onClick={() => setShowSchemaEditor(true)}
-					title="Edit schema"
-				>
-					Schema
-				</button>
+		<div className="db-editor-root">
+			<div className="db-toolbar">
+				<ViewSwitcher views={database.views} activeViewId={activeView.id} />
+				<span className="db-toolbar-spacer" />
+				<Toolbar
+					view={activeView}
+					schema={database.schema}
+					database={database}
+					syncStatus={syncStatus}
+					onManageFields={() => setShowSchemaEditor(true)}
+				/>
 			</div>
 
-			<ViewSwitcher
-				views={database.views}
-				activeViewId={activeView.id}
-			/>
-
-			<Toolbar view={activeView} schema={database.schema} />
-
-			<div className="flex-1 overflow-hidden flex flex-col">
+			<div className="db-content db-editor-content">
 				{renderView()}
-			</div>
-
-			<div className="px-3 py-1 text-[10px] opacity-40 border-t" style={{ borderColor: 'var(--vscode-panel-border)' }}>
-				{processedRecords.length} records
 			</div>
 
 			{peekRecord && (
 				<PeekPanel
 					record={peekRecord}
 					database={database}
+					databaseCatalog={databaseCatalog}
 					relationTitles={relationTitles}
 					onClose={() => setEditingRecordId(null)}
 				/>
@@ -95,6 +106,8 @@ export function App() {
 			{showSchemaEditor && (
 				<SchemaEditor
 					database={database}
+					databaseCatalog={databaseCatalog}
+					view={activeView}
 					onClose={() => setShowSchemaEditor(false)}
 				/>
 			)}

@@ -16,10 +16,9 @@ interface TableCellProps {
 	field: Field;
 	database: Database;
 	relationTitles?: Record<string, string>;
-	onStartEdit: () => void;
 }
 
-export function TableCell({ record, field, database, relationTitles, onStartEdit }: TableCellProps) {
+export function TableCell({ record, field, database, relationTitles }: TableCellProps) {
 	const value = record[field.id];
 	const displayValue = getFieldDisplayValue(record, field.id, database.schema, database);
 
@@ -28,12 +27,10 @@ export function TableCell({ record, field, database, relationTitles, onStartEdit
 		return <span style={{ opacity: 0.5 }}>{displayValue}</span>;
 	}
 
-	const handleClick = () => onStartEdit();
-
 	switch (field.type) {
 		case 'checkbox':
 			return (
-				<span className="cursor-pointer flex items-center" onClick={handleClick}>
+				<span className="flex items-center">
 					{value === true ? (
 						<svg width="14" height="14" viewBox="0 0 16 16" fill="var(--vscode-focusBorder)">
 							<rect x="1" y="1" width="14" height="14" rx="2" />
@@ -49,20 +46,20 @@ export function TableCell({ record, field, database, relationTitles, onStartEdit
 			);
 		case 'status':
 			return displayValue ? (
-				<Badge label={displayValue} color={getStatusColor(displayValue)} onClick={handleClick} />
+				<Badge label={displayValue} color={getStatusColor(displayValue)} />
 			) : (
-				<span className="cursor-pointer" style={{ opacity: 0.25 }} onClick={handleClick}>&mdash;</span>
+				<span style={{ opacity: 0.25 }}>&mdash;</span>
 			);
 		case 'select':
 			return displayValue ? (
-				<Badge label={displayValue} color={getFieldOptionColor(field, displayValue)} onClick={handleClick} />
+				<Badge label={displayValue} color={getFieldOptionColor(field, displayValue)} />
 			) : (
-				<span className="cursor-pointer" style={{ opacity: 0.25 }} onClick={handleClick}>&mdash;</span>
+				<span style={{ opacity: 0.25 }}>&mdash;</span>
 			);
 		case 'multiselect': {
 			const values = Array.isArray(value) ? value : [];
 			return (
-				<div className="flex gap-1 flex-wrap cursor-pointer" onClick={handleClick}>
+				<div className="flex gap-1 flex-wrap">
 					{values.map((v) => (
 						<Badge key={v} label={v} color={getFieldOptionColor(field, v)} />
 					))}
@@ -91,16 +88,15 @@ export function TableCell({ record, field, database, relationTitles, onStartEdit
 				>
 					{displayValue}
 				</a>
-			) : (
-				<span className="cursor-pointer" style={{ opacity: 0.25 }} onClick={handleClick}>&mdash;</span>
-			);
-		default:
-			return (
-				<span
-					className="cursor-pointer block truncate"
-					onClick={handleClick}
-					title={displayValue}
-				>
+				) : (
+					<span style={{ opacity: 0.25 }}>&mdash;</span>
+				);
+			default:
+				return (
+					<span
+						className="block truncate"
+						title={displayValue}
+					>
 					{displayValue || <span style={{ opacity: 0.25 }}>&mdash;</span>}
 				</span>
 			);

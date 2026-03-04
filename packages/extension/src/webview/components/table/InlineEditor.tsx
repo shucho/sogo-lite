@@ -7,9 +7,10 @@
  * ---
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Database, DBRecord, Field } from 'sogo-db-core';
-import { STATUS_OPTIONS, getStatusColor, getFieldOptionColor } from 'sogo-db-core';
+import { STATUS_OPTIONS, getFieldOptionColor, getRecordTitle, getStatusColor } from 'sogo-db-core';
+import type { DatabaseCatalogEntry } from '../../hooks/useDatabase.js';
 import { Badge } from '../shared/Badge.js';
 import { PickerDropdown } from '../shared/PickerDropdown.js';
 
@@ -17,11 +18,12 @@ interface InlineEditorProps {
 	record: DBRecord;
 	field: Field;
 	database: Database;
+	databaseCatalog?: DatabaseCatalogEntry[];
 	onSave: (value: string | number | boolean | string[] | null) => void;
 	onCancel: () => void;
 }
 
-export function InlineEditor({ record, field, onSave, onCancel }: InlineEditorProps) {
+export function InlineEditor({ record, field, database, databaseCatalog, onSave, onCancel }: InlineEditorProps) {
 	const currentValue = record[field.id];
 	const inputRef = useRef<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(null);
 
@@ -103,6 +105,7 @@ export function InlineEditor({ record, field, onSave, onCancel }: InlineEditorPr
 					options={[...STATUS_OPTIONS]}
 					value={(currentValue as string) ?? null}
 					getColor={getStatusColor}
+					groupStatus
 					onSave={onSave}
 					onCancel={onCancel}
 				/>
@@ -134,9 +137,16 @@ export function InlineEditor({ record, field, onSave, onCancel }: InlineEditorPr
 		}
 
 		case 'relation':
-			// Relations are not editable inline — use record editor
-			onCancel();
-			return null;
+			return (
+				<InlineRelationEditor
+					record={record}
+					field={field}
+					database={database}
+					databaseCatalog={databaseCatalog ?? []}
+					onSave={onSave}
+					onCancel={onCancel}
+				/>
+			);
 
 		default:
 			return (
@@ -152,18 +162,106 @@ export function InlineEditor({ record, field, onSave, onCancel }: InlineEditorPr
 	}
 }
 
+function InlineRelationEditor({
+	record,
+	field,
+	database,
+	databaseCatalog,
+	onSave,
+	onCancel,
+}: {
+	record: DBRecord;
+	field: Field;
+	database: Database;
+	databaseCatalog: DatabaseCatalogEntry[];
+	onSave: (value: string[]) => void;
+	onCancel: () => void;
+}) {
+	const [query, setQuery] = useState('');
+	const [selected, setSelected] = useState<string[]>(
+		Array.isArray(record[field.id]) ? [...record[field.id] as string[]] : [],
+	);
+
+	const targetDb = useMemo(() => {
+		const targetId = field.relation?.targetDatabaseId;
+		if (!targetId || targetId === database.id) {
+			return { id: database.id, schema: database.schema, records: database.records };
+		}
+		const found = databaseCatalog.find((entry) => entry.id === targetId);
+		if (found) {
+			return { id: found.id, schema: found.schema, records: found.records };
+		}
+		return { id: database.id, schema: database.schema, records: database.records };
+	}, [field.relation?.targetDatabaseId, database.id, database.schema, database.records, databaseCatalog]);
+
+	const candidates = useMemo(() => {
+		const lowered = query.trim().toLowerCase();
+		return targetDb.records
+			.filter((candidate) => !(targetDb.id === database.id && candidate.id === record.id))
+			.filter((candidate) => {
+				if (!lowered) return true;
+				return getRecordTitle(candidate, targetDb.schema).toLowerCase().includes(lowered);
+			});
+	}, [query, targetDb, database.id, record.id]);
+
+	return (
+		<div
+			className="rounded p-1.5 space-y-1"
+			style={{ border: '1px solid var(--vscode-input-border)', backgroundColor: 'var(--vscode-editor-background)' }}
+		>
+			<input
+				className="w-full rounded px-1.5 py-0.5 text-xs"
+				style={{ backgroundColor: 'var(--vscode-input-background)', color: 'var(--vscode-input-foreground)' }}
+				value={query}
+				onChange={(e) => setQuery(e.target.value)}
+				placeholder="Search records..."
+			/>
+			<div className="max-h-[132px] overflow-y-auto pr-1 space-y-0.5">
+				{candidates.map((candidate) => (
+					<label key={candidate.id} className="flex items-center gap-1.5 text-xs cursor-pointer">
+						<input
+							type="checkbox"
+							checked={selected.includes(candidate.id)}
+							onChange={(e) => {
+								setSelected((prev) =>
+									e.target.checked ? [...prev, candidate.id] : prev.filter((id) => id !== candidate.id),
+								);
+							}}
+						/>
+						<span className="truncate">{getRecordTitle(candidate, targetDb.schema)}</span>
+					</label>
+				))}
+				{candidates.length === 0 && <div className="text-[11px] opacity-45">No matches</div>}
+			</div>
+			<div className="flex items-center justify-end gap-1">
+				<button className="text-[11px] opacity-70 hover:opacity-100" onClick={() => setSelected([])}>
+					Clear
+				</button>
+				<button className="text-[11px] opacity-70 hover:opacity-100" onClick={onCancel}>
+					Cancel
+				</button>
+				<button className="text-[11px] opacity-70 hover:opacity-100" onClick={() => onSave(selected)}>
+					Done
+				</button>
+			</div>
+		</div>
+	);
+}
+
 /* ─── Inline pill picker for status/select ──────────── */
 
 function InlinePillPicker({
 	options,
 	value,
 	getColor,
+	groupStatus,
 	onSave,
 	onCancel,
 }: {
-	options: string[];
+	options: readonly string[];
 	value: string | null;
 	getColor: (opt: string) => string;
+	groupStatus?: boolean;
 	onSave: (value: string | null) => void;
 	onCancel: () => void;
 }) {
@@ -183,8 +281,10 @@ function InlinePillPicker({
 					anchor={anchor}
 					options={options}
 					selected={value ? [value] : []}
+					groupStatus={groupStatus}
 					getColor={getColor}
 					onToggle={(opt) => onSave(opt === value ? null : opt)}
+					onClear={() => onSave(null)}
 					onClose={onCancel}
 				/>
 			)}
@@ -201,7 +301,7 @@ function InlineMultiPillPicker({
 	onSave,
 	onCancel,
 }: {
-	options: string[];
+	options: readonly string[];
 	selected: string[];
 	getColor: (opt: string) => string;
 	onSave: (value: string[]) => void;
@@ -237,6 +337,7 @@ function InlineMultiPillPicker({
 								: [...prev, opt],
 						);
 					}}
+					onClear={() => setCurrent([])}
 					onClose={() => onSave(currentRef.current)}
 				/>
 			)}

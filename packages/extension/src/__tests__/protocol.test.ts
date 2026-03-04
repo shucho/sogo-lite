@@ -16,7 +16,12 @@ import type {
 	UpdateRecordCommand,
 	CreateRecordCommand,
 	DeleteRecordCommand,
+	DuplicateRecordCommand,
 	MoveRecordCommand,
+	UpdateRecordInDatabaseCommand,
+	CreateRelatedRecordCommand,
+	UpdateRelationLinksCommand,
+	UpdateHeaderFieldsCommand,
 	SwitchViewCommand,
 	CreateViewCommand,
 	UpdateViewCommand,
@@ -39,6 +44,13 @@ describe('protocol types', () => {
 			activeViewId: 'view-1',
 			processedRecords: [],
 			allDatabases: [{ id: 'db-1', name: 'Test' }],
+			databaseCatalog: [{
+				id: 'db-1',
+				name: 'Test',
+				schema: [],
+				records: [],
+			}],
+			syncStatus: { kind: 'local', updatedAt: '2026-01-01T00:00:00.000Z' },
 		};
 		expect(msg.type).toBe('snapshot');
 		expect(msg.database.id).toBe('db-1');
@@ -79,6 +91,14 @@ describe('protocol types', () => {
 		expect(msg.type).toBe('delete-record');
 	});
 
+	it('DuplicateRecordCommand has correct shape', () => {
+		const msg: DuplicateRecordCommand = {
+			type: 'duplicate-record',
+			recordId: 'rec-1',
+		};
+		expect(msg.type).toBe('duplicate-record');
+	});
+
 	it('MoveRecordCommand has correct shape', () => {
 		const msg: MoveRecordCommand = {
 			type: 'move-record',
@@ -87,6 +107,49 @@ describe('protocol types', () => {
 			value: 'Done',
 		};
 		expect(msg.type).toBe('move-record');
+	});
+
+	it('UpdateRecordInDatabaseCommand has correct shape', () => {
+		const msg: UpdateRecordInDatabaseCommand = {
+			type: 'update-record-in-database',
+			databaseId: 'db-2',
+			recordId: 'rec-1',
+			fieldId: 'field-1',
+			value: 'updated',
+		};
+		expect(msg.type).toBe('update-record-in-database');
+	});
+
+	it('CreateRelatedRecordCommand has correct shape', () => {
+		const msg: CreateRelatedRecordCommand = {
+			type: 'create-related-record',
+			sourceDatabaseId: 'db-1',
+			sourceRecordId: 'r-source',
+			relationFieldId: 'f-rel',
+			targetDatabaseId: 'db-2',
+			title: 'New related item',
+		};
+		expect(msg.type).toBe('create-related-record');
+	});
+
+	it('UpdateRelationLinksCommand has correct shape', () => {
+		const msg: UpdateRelationLinksCommand = {
+			type: 'update-relation-links',
+			databaseId: 'db-1',
+			recordId: 'r-source',
+			relationFieldId: 'f-rel',
+			recordIds: ['r1', 'r2'],
+		};
+		expect(msg.type).toBe('update-relation-links');
+	});
+
+	it('UpdateHeaderFieldsCommand has correct shape', () => {
+		const msg: UpdateHeaderFieldsCommand = {
+			type: 'update-header-fields',
+			databaseId: 'db-1',
+			fieldIds: ['f1', 'f2'],
+		};
+		expect(msg.type).toBe('update-header-fields');
 	});
 
 	it('SwitchViewCommand has correct shape', () => {
@@ -143,7 +206,12 @@ describe('protocol types', () => {
 			{ type: 'update-record', recordId: 'r', fieldId: 'f', value: 'v' },
 			{ type: 'create-record' },
 			{ type: 'delete-record', recordId: 'r' },
+			{ type: 'duplicate-record', recordId: 'r' },
 			{ type: 'move-record', recordId: 'r', fieldId: 'f', value: 'v' },
+			{ type: 'update-record-in-database', databaseId: 'db', recordId: 'r', fieldId: 'f', value: 'v' },
+			{ type: 'create-related-record', sourceDatabaseId: 's', sourceRecordId: 'r', relationFieldId: 'f', targetDatabaseId: 't', title: 'x' },
+			{ type: 'update-relation-links', databaseId: 'db', recordId: 'r', relationFieldId: 'f', recordIds: [] },
+			{ type: 'update-header-fields', databaseId: 'db', fieldIds: ['f'] },
 			{ type: 'switch-view', viewId: 'v' },
 			{ type: 'create-view', name: 'n', viewType: 'table' },
 			{ type: 'update-view', viewId: 'v', changes: {} },
@@ -152,7 +220,7 @@ describe('protocol types', () => {
 			{ type: 'open-record', recordId: 'r' },
 			{ type: 'ready' },
 		];
-		expect(commands).toHaveLength(11);
+		expect(commands).toHaveLength(16);
 	});
 });
 
