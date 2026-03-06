@@ -69,7 +69,8 @@
 			"sogo-db": [
 				{
 					"id": "sogo-db.databaseList",
-					"name": "Databases"
+					"name": "Databases",
+					"type": "webview"
 				}
 			]
 		},
@@ -104,19 +105,6 @@
 				"icon": "$(refresh)"
 			}
 		],
-		"menus": {
-			"view/title": [
-				{
-					"command": "sogo-db.refresh",
-					"when": "view == sogo-db.databaseList",
-					"group": "navigation"
-				},
-				{
-					"command": "sogo-db.createDatabase",
-					"when": "view == sogo-db.databaseList"
-				}
-			]
-		},
 		"configuration": {
 			"title": "Sogo DB",
 			"properties": {

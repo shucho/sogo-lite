@@ -11,6 +11,7 @@
  */
 
 import * as vscode from 'vscode';
+import * as path from 'node:path';
 import {
 	scanAll,
 	readDatabaseFile,
@@ -209,6 +210,71 @@ export class DatabaseManager {
 		return entry;
 	}
 
+	async renameDatabase(filePath: string, nextName: string): Promise<boolean> {
+		const entry = this.getByPath(filePath);
+		if (!entry) return false;
+
+		const trimmed = nextName.trim();
+		if (!trimmed || trimmed === entry.db.name) return false;
+
+		entry.db.name = trimmed;
+		await this.save(entry);
+		return true;
+	}
+
+	async duplicateDatabase(filePath: string): Promise<DatabaseEntry | undefined> {
+		const entry = this.getByPath(filePath);
+		if (!entry) return undefined;
+
+		const dirPath = path.dirname(filePath);
+		let duplicateName = `${entry.db.name} (copy)`;
+		let duplicateIndex = 2;
+		const nameSet = new Set(
+			this.getAll()
+				.filter((candidate) => path.dirname(candidate.path) === dirPath)
+				.map((candidate) => candidate.db.name.toLowerCase()),
+		);
+		while (nameSet.has(duplicateName.toLowerCase())) {
+			duplicateName = `${entry.db.name} (copy ${duplicateIndex})`;
+			duplicateIndex += 1;
+		}
+
+		const baseFileName =
+			duplicateName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'database';
+		let candidatePath = path.join(dirPath, `${baseFileName}.db.json`);
+		let pathIndex = 2;
+		while (await this.pathExists(candidatePath)) {
+			candidatePath = path.join(dirPath, `${baseFileName}-${pathIndex}.db.json`);
+			pathIndex += 1;
+		}
+
+		const duplicate = JSON.parse(JSON.stringify(entry.db)) as Database;
+		duplicate.id = crypto.randomUUID();
+		duplicate.name = duplicateName;
+		for (const view of duplicate.views) {
+			view.id = crypto.randomUUID();
+		}
+		duplicate.records = duplicate.records.map((record) => ({ ...record, id: crypto.randomUUID() }));
+
+		await writeDatabaseFile(duplicate, candidatePath);
+		const duplicatedEntry: DatabaseEntry = {
+			db: duplicate,
+			path: candidatePath,
+			scope: this.inferScope(candidatePath),
+		};
+		this.cache.set(duplicate.id, duplicatedEntry);
+		this._onDidChange.fire(duplicatedEntry);
+		return duplicatedEntry;
+	}
+
+	async deleteDatabase(filePath: string): Promise<boolean> {
+		const entry = this.getByPath(filePath);
+		if (!entry) return false;
+		await vscode.workspace.fs.delete(vscode.Uri.file(filePath));
+		this.removeByPath(filePath);
+		return true;
+	}
+
 	// ── Processed Records ──────────────────────────────────────
 
 	getProcessedRecords(dbId: string, viewId: string): DBRecord[] {
@@ -249,6 +315,15 @@ export class DatabaseManager {
 	private inferScope(filePath: string): 'global' | 'workspace' {
 		const globalPath = getGlobalDatabasePath();
 		return filePath.startsWith(globalPath) ? 'global' : 'workspace';
+	}
+
+	private async pathExists(filePath: string): Promise<boolean> {
+		try {
+			await vscode.workspace.fs.stat(vscode.Uri.file(filePath));
+			return true;
+		} catch {
+			return false;
+		}
 	}
 
 	removeByPath(filePath: string): void {
