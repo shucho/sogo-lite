@@ -684,6 +684,10 @@ input[type="checkbox"] {
 	color: var(--vscode-descriptionForeground);
 }
 
+.db-record-prop-value {
+	min-width: 0;
+}
+
 .db-record-editor {
 	border: 1px solid var(--vscode-widget-border, rgba(128,128,128,0.14));
 	border-radius: 8px;
@@ -1515,9 +1519,10 @@ body.vscode-high-contrast .db-related-task-date-input {
 }
 
 .db-table {
-	width: 100%;
+	width: max-content;
+	min-width: 100%;
 	border-collapse: collapse;
-	table-layout: auto;
+	table-layout: fixed;
 }
 
 .db-th {
@@ -1525,6 +1530,7 @@ body.vscode-high-contrast .db-related-task-date-input {
 	top: 0;
 	background: var(--vscode-editorGroupHeader-tabsBackground);
 	border-bottom: 1px solid var(--vscode-widget-border, var(--vscode-editorWidget-border));
+	border-right: 1px solid color-mix(in srgb, var(--vscode-widget-border, rgba(128,128,128,0.18)) 72%, transparent);
 	padding: 0 8px;
 	height: 32px;
 	text-align: left;
@@ -1543,6 +1549,9 @@ body.vscode-high-contrast .db-related-task-date-input {
 
 .db-th-label {
 	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .db-th-label-action {
@@ -1567,22 +1576,40 @@ body.vscode-high-contrast .db-related-task-date-input {
 }
 
 .db-th-add-field {
-	width: 44px;
+	position: sticky;
+	right: 0;
+	width: 0;
+	min-width: 0;
+	max-width: 0;
 	padding: 0;
+	border-right: none;
+	overflow: visible;
+	background: transparent;
+	z-index: 3;
 }
 
 .db-col-resize-handle {
 	position: absolute;
-	right: -2px;
+	right: -6px;
 	top: 0;
-	width: 4px;
+	width: 12px;
 	height: 100%;
 	cursor: col-resize;
 	background: transparent;
 }
 
-.db-col-resize-handle:hover {
-	background: var(--vscode-focusBorder);
+.db-col-resize-handle::before {
+	content: '';
+	position: absolute;
+	right: 5px;
+	top: 4px;
+	bottom: 4px;
+	width: 1px;
+	background: color-mix(in srgb, var(--vscode-widget-border, rgba(128,128,128,0.24)) 82%, transparent);
+}
+
+.db-col-resize-handle:hover::before {
+	background: color-mix(in srgb, var(--vscode-focusBorder, rgba(93, 152, 255, 0.9)) 55%, transparent);
 }
 
 .db-row {
@@ -1594,25 +1621,37 @@ body.vscode-high-contrast .db-related-task-date-input {
 }
 
 .db-td {
+	position: relative;
 	padding: 6px 8px;
 	font-size: 12px;
 	vertical-align: middle;
 	border-bottom: 1px solid var(--vscode-widget-border, var(--vscode-editorWidget-border));
+	border-right: 1px solid color-mix(in srgb, var(--vscode-widget-border, rgba(128,128,128,0.16)) 72%, transparent);
+	overflow: hidden;
+}
+
+.db-td-content {
+	min-width: 0;
+}
+
+.db-td-primary {
+	padding-right: 92px;
+}
+
+.db-col-resize-handle-cell {
+	top: -1px;
+	bottom: -1px;
+	height: auto;
+}
+
+.db-col-resize-handle-cell::before {
+	top: 0;
+	bottom: 0;
 }
 
 .db-td-check {
 	width: 32px;
 	text-align: center;
-}
-
-.db-td-end {
-	width: 44px;
-	padding: 0;
-}
-
-.db-row-actions-cell {
-	width: 88px;
-	padding-right: 6px;
 }
 
 .db-row-actions {
@@ -1621,6 +1660,127 @@ body.vscode-high-contrast .db-related-task-date-input {
 	gap: 4px;
 	opacity: 0;
 	transition: opacity 90ms linear;
+	padding: 2px 4px;
+	border: 1px solid color-mix(in srgb, var(--vscode-widget-border, rgba(128,128,128,0.18)) 78%, transparent);
+	border-radius: 6px;
+	background: color-mix(in srgb, var(--vscode-editor-background) 92%, var(--vscode-foreground) 8%);
+	pointer-events: auto;
+}
+
+.db-row-actions-inline {
+	position: absolute;
+	right: 16px;
+	top: 50%;
+	transform: translateY(-50%);
+}
+
+.db-list-record {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 12px 16px;
+	border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.db-list-record:hover {
+	background: color-mix(in srgb, var(--vscode-list-hoverBackground) 72%, transparent);
+}
+
+.db-list-record-main {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.db-list-record-title {
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.35;
+	min-width: 0;
+}
+
+.db-list-property-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.db-list-property-row {
+	display: grid;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	font-size: 12px;
+}
+
+.db-list-property-label {
+	color: var(--vscode-descriptionForeground);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.db-list-property-divider {
+	position: relative;
+	align-self: stretch;
+	cursor: col-resize;
+	touch-action: none;
+}
+
+.db-list-property-divider::before {
+	content: '';
+	position: absolute;
+	left: 50%;
+	top: 1px;
+	bottom: 1px;
+	width: 1px;
+	transform: translateX(-50%);
+	background: color-mix(in srgb, var(--vscode-widget-border, rgba(128,128,128,0.24)) 78%, transparent);
+}
+
+.db-list-property-divider::after {
+	content: '';
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 3px;
+	height: 18px;
+	border-radius: 999px;
+	transform: translate(-50%, -50%);
+	background: color-mix(in srgb, var(--vscode-descriptionForeground, rgba(128,128,128,0.55)) 34%, transparent);
+	opacity: 0;
+	transition: opacity 140ms ease;
+}
+
+.db-list-property-row:hover .db-list-property-divider::after,
+.db-list-property-divider:hover::after {
+	opacity: 1;
+}
+
+.db-list-property-value {
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.db-list-property-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.db-list-property-empty {
+	font-size: 12px;
+	color: var(--vscode-descriptionForeground);
+}
+
+.db-list-record-open {
+	flex-shrink: 0;
+	margin-top: 2px;
 }
 
 .db-row:hover .db-row-actions {
@@ -1629,6 +1789,47 @@ body.vscode-high-contrast .db-related-task-date-input {
 
 .db-row-check {
 	cursor: pointer;
+}
+
+.db-cell-checkbox {
+	width: 14px;
+	height: 14px;
+	display: block;
+}
+
+.db-cell-checkbox-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0;
+	border: none;
+	background: transparent;
+	cursor: pointer;
+}
+
+.db-cell-checkbox-box {
+	fill: color-mix(in srgb, var(--vscode-editor-background) 88%, var(--vscode-foreground) 12%);
+	stroke: color-mix(in srgb, var(--vscode-foreground, #cccccc) 36%, transparent);
+	stroke-width: 1.25;
+	vector-effect: non-scaling-stroke;
+}
+
+.db-cell-checkbox-mark {
+	fill: none;
+	stroke: transparent;
+	stroke-width: 1.8;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	vector-effect: non-scaling-stroke;
+}
+
+.db-cell-checkbox--checked .db-cell-checkbox-box {
+	fill: var(--vscode-checkbox-background, var(--vscode-focusBorder, #4c8bf5));
+	stroke: var(--vscode-checkbox-background, var(--vscode-focusBorder, #4c8bf5));
+}
+
+.db-cell-checkbox--checked .db-cell-checkbox-mark {
+	stroke: var(--vscode-checkbox-foreground, var(--vscode-editor-background, #ffffff));
 }
 
 .db-group-header-row {
@@ -1662,13 +1863,18 @@ body.vscode-high-contrast .db-related-task-date-input {
 }
 
 .db-add-field-btn {
-	width: 100%;
-	height: 100%;
+	position: absolute;
+	right: 8px;
+	top: 4px;
+	width: 28px;
+	height: 24px;
 	border: none;
-	background: transparent;
+	border-radius: 6px;
+	background: color-mix(in srgb, var(--vscode-editor-background) 92%, var(--vscode-foreground) 8%);
 	color: var(--vscode-descriptionForeground);
 	cursor: pointer;
 	font-size: 16px;
+	box-shadow: 0 0 0 1px color-mix(in srgb, var(--vscode-widget-border, rgba(128,128,128,0.18)) 78%, transparent);
 }
 
 .db-add-field-btn:hover {
