@@ -91,5 +91,7 @@ git push && git push --tags
 For sharing without the marketplace:
 
 ```bash
-code --install-extension packages/extension/sogo-lite-X.Y.Z.vsix
+code --install-extension packages/extension/sogo-lite-X.Y.Z.vsix --force
 ```
+
+Use `--force` if you're reinstalling a local VSIX over an existing install. VS Code can otherwise keep the currently installed extension when the identifier and version are unchanged.

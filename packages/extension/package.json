@@ -2,7 +2,7 @@
 	"name": "sogo-lite",
 	"displayName": "Sogo Lite",
 	"description": "Notion-style databases in VS Code — view and edit .db.json files as tables, kanbans, calendars, and more",
-	"version": "0.2.0",
+	"version": "0.2.1",
 	"publisher": "shucho",
 	"license": "MIT",
 	"author": "DataRM",
