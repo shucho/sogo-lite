@@ -22,8 +22,12 @@ export interface DatabaseSnapshot {
 	processedRecords: DBRecord[];
 	/** All databases for relation resolution */
 	allDatabases: Array<{ id: string; name: string }>;
+	/** Full database catalog for advanced relation/schema/record UI */
+	databaseCatalog: Array<{ id: string; name: string; schema: Field[]; records: DBRecord[] }>;
 	/** Pre-resolved map of record ID → display title for relation fields */
 	relationTitles: Record<string, string>;
+	/** Best-effort local sync/write status */
+	syncStatus: SyncStatus;
 }
 
 export interface ThemeUpdate {
@@ -31,7 +35,18 @@ export interface ThemeUpdate {
 	kind: 'light' | 'dark' | 'high-contrast';
 }
 
-export type HostMessage = DatabaseSnapshot | ThemeUpdate;
+export interface SyncStatus {
+	kind: 'local' | 'syncing' | 'synced' | 'failed';
+	message?: string;
+	updatedAt: string;
+}
+
+export interface OpenRecordUiMessage {
+	type: 'open-record-ui';
+	recordId: string;
+}
+
+export type HostMessage = DatabaseSnapshot | ThemeUpdate | OpenRecordUiMessage;
 
 // ── Webview → Host ─────────────────────────────────────────────
 
@@ -52,11 +67,47 @@ export interface DeleteRecordCommand {
 	recordId: string;
 }
 
+export interface DuplicateRecordCommand {
+	type: 'duplicate-record';
+	recordId: string;
+}
+
 export interface MoveRecordCommand {
 	type: 'move-record';
 	recordId: string;
 	fieldId: string;
 	value: string;
+}
+
+export interface UpdateRecordInDatabaseCommand {
+	type: 'update-record-in-database';
+	databaseId: string;
+	recordId: string;
+	fieldId: string;
+	value: string | number | boolean | string[] | null;
+}
+
+export interface CreateRelatedRecordCommand {
+	type: 'create-related-record';
+	sourceDatabaseId: string;
+	sourceRecordId: string;
+	relationFieldId: string;
+	targetDatabaseId: string;
+	title: string;
+}
+
+export interface UpdateRelationLinksCommand {
+	type: 'update-relation-links';
+	databaseId: string;
+	recordId: string;
+	relationFieldId: string;
+	recordIds: string[];
+}
+
+export interface UpdateHeaderFieldsCommand {
+	type: 'update-header-fields';
+	databaseId: string;
+	fieldIds: string[];
 }
 
 export interface SwitchViewCommand {
@@ -73,7 +124,7 @@ export interface CreateViewCommand {
 export interface UpdateViewCommand {
 	type: 'update-view';
 	viewId: string;
-	changes: Partial<Pick<DBView, 'name' | 'sort' | 'filter' | 'hiddenFields' | 'fieldOrder' | 'groupBy' | 'columnWidths'>>;
+	changes: Partial<Pick<DBView, 'name' | 'sort' | 'filter' | 'hiddenFields' | 'fieldOrder' | 'groupBy' | 'columnWidths' | 'cardCoverField' | 'cardFields'>>;
 }
 
 export interface DeleteViewCommand {
@@ -89,6 +140,7 @@ export interface UpdateSchemaCommand {
 export interface OpenRecordCommand {
 	type: 'open-record';
 	recordId: string;
+	databaseId?: string;
 }
 
 export interface ReadyCommand {
@@ -99,7 +151,12 @@ export type WebviewCommand =
 	| UpdateRecordCommand
 	| CreateRecordCommand
 	| DeleteRecordCommand
+	| DuplicateRecordCommand
 	| MoveRecordCommand
+	| UpdateRecordInDatabaseCommand
+	| CreateRelatedRecordCommand
+	| UpdateRelationLinksCommand
+	| UpdateHeaderFieldsCommand
 	| SwitchViewCommand
 	| CreateViewCommand
 	| UpdateViewCommand

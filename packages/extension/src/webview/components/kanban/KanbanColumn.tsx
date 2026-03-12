@@ -18,10 +18,27 @@ interface KanbanColumnProps {
 	records: DBRecord[];
 	groupField: Field;
 	database: Database;
+	relationTitles?: Record<string, string>;
+	cardFieldIds?: string[];
+	collapsed: boolean;
+	onToggleCollapse: () => void;
+	onAddRecord: () => void;
 	onOpenRecord: (recordId: string) => void;
 }
 
-export function KanbanColumn({ columnValue, label, records, groupField, database, onOpenRecord }: KanbanColumnProps) {
+export function KanbanColumn({
+	columnValue,
+	label,
+	records,
+	groupField,
+	database,
+	relationTitles,
+	cardFieldIds,
+	collapsed,
+	onToggleCollapse,
+	onAddRecord,
+	onOpenRecord,
+}: KanbanColumnProps) {
 	const { setNodeRef, isOver } = useDroppable({ id: columnValue });
 
 	const headerColor =
@@ -48,12 +65,27 @@ export function KanbanColumn({ columnValue, label, records, groupField, database
 				)}
 				<span className="text-xs font-medium truncate">{label || 'No value'}</span>
 				<span className="text-xs opacity-40 ml-auto">{records.length}</span>
+				<button className="text-xs opacity-45 hover:opacity-100" onClick={onToggleCollapse} title="Collapse column">
+					{collapsed ? '+' : '−'}
+				</button>
 			</div>
-			<div className="flex-1 px-2 pb-2 space-y-1.5 overflow-y-auto min-h-[60px]">
+			<div className={`flex-1 px-2 pb-2 space-y-1.5 overflow-y-auto min-h-[60px] ${collapsed ? 'hidden' : ''}`}>
 				{records.map((record) => (
-					<KanbanCard key={record.id} record={record} database={database} onOpenRecord={onOpenRecord} />
+					<KanbanCard
+						key={record.id}
+						record={record}
+						database={database}
+						relationTitles={relationTitles}
+						cardFieldIds={cardFieldIds}
+						onOpenRecord={onOpenRecord}
+					/>
 				))}
 			</div>
+			{!collapsed && (
+				<button className="text-xs px-3 py-2 text-left opacity-70 hover:opacity-100" onClick={onAddRecord}>
+					+ Add
+				</button>
+			)}
 		</div>
 	);
 }

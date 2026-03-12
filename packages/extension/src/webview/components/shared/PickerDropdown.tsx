@@ -11,19 +11,39 @@
  * Anchors to a trigger element and positions below (or above if near bottom).
  */
 
-import { useRef, useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { getReadableTextColor } from 'sogo-db-core';
-import { Badge } from './Badge.js';
 
 interface PickerDropdownProps {
 	anchor: HTMLElement;
-	options: string[];
+	options: readonly string[];
 	selected: string[];
 	multi?: boolean;
+	groupStatus?: boolean;
 	getColor: (opt: string) => string;
 	onToggle: (option: string) => void;
+	onClear?: () => void;
+	onDone?: () => void;
 	onClose: () => void;
+}
+
+type StatusSection = 'To-do' | 'In progress' | 'Complete';
+
+function getStatusSection(label: string): StatusSection {
+	const normalized = label.trim().toLowerCase();
+	if (normalized.includes('done') || normalized.includes('complete')) {
+		return 'Complete';
+	}
+	if (
+		normalized.includes('progress') ||
+		normalized.includes('active') ||
+		normalized.includes('doing') ||
+		normalized.includes('diagnostic')
+	) {
+		return 'In progress';
+	}
+	return 'To-do';
 }
 
 export function PickerDropdown({
@@ -31,8 +51,11 @@ export function PickerDropdown({
 	options,
 	selected,
 	multi,
+	groupStatus,
 	getColor,
 	onToggle,
+	onClear,
+	onDone,
 	onClose,
 }: PickerDropdownProps) {
 	const ref = useRef<HTMLDivElement>(null);
@@ -71,14 +94,10 @@ export function PickerDropdown({
 		position: 'fixed',
 		left,
 		width,
-		maxWidth: 320,
-		maxHeight: Math.min(280, above ? spaceAbove : spaceBelow),
-		overflowY: 'auto',
-		zIndex: 100,
-		backgroundColor: 'var(--vscode-dropdown-background)',
-		border: '1px solid var(--vscode-dropdown-border)',
-		borderRadius: '6px',
-		boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
+		maxWidth: 340,
+		maxHeight: Math.min(320, above ? spaceAbove : spaceBelow),
+		overflow: 'hidden',
+		zIndex: 120,
 	};
 
 	if (above) {
@@ -87,78 +106,97 @@ export function PickerDropdown({
 		style.top = rect.bottom + 4;
 	}
 
+	const groupedOptions = useMemo(() => {
+		if (!groupStatus) {
+			return [{ section: '', items: options }];
+		}
+		const buckets: Record<StatusSection, string[]> = {
+			'To-do': [],
+			'In progress': [],
+			Complete: [],
+		};
+		for (const option of options) {
+			buckets[getStatusSection(option)].push(option);
+		}
+		return (['To-do', 'In progress', 'Complete'] as const)
+			.filter((section) => buckets[section].length > 0)
+			.map((section) => ({ section, items: buckets[section] }));
+	}, [groupStatus, options]);
+
 	return createPortal(
-		<div ref={ref} style={style}>
-			{/* Multi: show selected at top with × dismiss */}
-			{multi && selected.length > 0 && (
-				<>
-					<div className="flex flex-wrap gap-1 px-2.5 py-2">
-						{selected.map((opt) => (
-							<DismissiblePill
-								key={opt}
-								label={opt}
-								color={getColor(opt)}
-								onDismiss={() => onToggle(opt)}
-							/>
-						))}
-					</div>
-					<div style={{ borderTop: '1px solid var(--vscode-panel-border)', margin: '0 8px' }} />
-				</>
+		<div ref={ref} className="db-dropdown-panel db-record-picker-panel" style={style}>
+			{selected.length > 0 && (
+				<div className="db-record-picker-selected">
+					{selected.map((option) => (
+						<button
+							key={option}
+							type="button"
+							className="db-record-picker-selected-chip"
+							onClick={() => onToggle(option)}
+						>
+							<span
+								className="db-record-picker-selected-chip-label"
+								style={{
+									backgroundColor: getColor(option),
+									color: getReadableTextColor(getColor(option)),
+								}}
+							>
+								{option}
+								<span className="db-record-picker-selected-chip-remove">×</span>
+							</span>
+						</button>
+					))}
+				</div>
 			)}
 
-			{/* Options list */}
-			<div className="py-1">
-				{options.map((opt) => {
-					const isSelected = selected.includes(opt);
-					return (
-						<button
-							key={opt}
-							className="peek-option w-full flex items-center gap-2.5 px-2.5 py-1.5 text-left"
-							onClick={() => onToggle(opt)}
-						>
-							<Badge label={opt} color={getColor(opt)} />
-							{isSelected && (
-								<svg
-									width="14"
-									height="14"
-									viewBox="0 0 16 16"
-									fill="currentColor"
-									className="flex-shrink-0 opacity-40 ml-auto"
+			<div className="db-record-picker-list">
+				{groupedOptions.length === 0 || options.length === 0 ? (
+					<div className="db-panel-empty">No matches</div>
+				) : groupedOptions.map(({ section, items }) => (
+					<div key={section || 'default'}>
+						{section ? <div className="db-record-picker-section-title">{section}</div> : null}
+						{items.map((option) => {
+							const isSelected = selected.includes(option);
+							const color = getColor(option);
+							return (
+								<button
+									key={option}
+									type="button"
+									className="db-record-picker-item"
+									onClick={() => onToggle(option)}
 								>
-									<path d="M6.5 12.01l-4-4 .707-.707L6.5 10.596l6.293-6.293.707.707-7 7z" />
-								</svg>
-							)}
-						</button>
-					);
-				})}
+									<span
+										className="db-record-picker-label db-record-picker-label--color"
+										style={{
+											backgroundColor: color,
+											color: getReadableTextColor(color),
+										}}
+									>
+										{option}
+									</span>
+									<span className="db-record-picker-mark">{isSelected ? '✓' : ''}</span>
+								</button>
+							);
+						})}
+					</div>
+				))}
 			</div>
+
+			{(multi || onClear) && (
+				<div className="db-panel-add flex items-center justify-end gap-2">
+					{onClear && (
+						<button type="button" className="db-btn" onClick={onClear}>
+							Clear
+						</button>
+					)}
+					{multi && (
+						<button type="button" className="db-btn db-btn-primary" onClick={() => (onDone ? onDone() : onClose())}>
+							Done
+						</button>
+					)}
+				</div>
+			)}
 		</div>,
 		document.body,
-	);
-}
-
-/* ─── Pill with × dismiss button ───────────────────── */
-
-function DismissiblePill({
-	label,
-	color,
-	onDismiss,
-}: {
-	label: string;
-	color: string;
-	onDismiss: () => void;
-}) {
-	const fg = getReadableTextColor(color);
-	return (
-		<span
-			className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium cursor-pointer"
-			style={{ backgroundColor: color, color: fg }}
-			onClick={onDismiss}
-		>
-			{label}
-			<svg width="8" height="8" viewBox="0 0 16 16" fill="currentColor" style={{ opacity: 0.7 }}>
-				<path d="M8 8.707l3.646 3.647.708-.707L8.707 8l3.647-3.646-.707-.708L8 7.293 4.354 3.646l-.708.708L7.293 8l-3.647 3.646.708.708L8 8.707z" />
-			</svg>
-		</span>
 	);
 }

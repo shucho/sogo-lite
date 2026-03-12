@@ -18,6 +18,7 @@ import type { DatabaseSnapshot, HostMessage, WebviewCommand, ThemeUpdate } from 
 
 export class DatabaseEditorProvider implements vscode.CustomTextEditorProvider {
 	private readonly webviews = new Map<string, vscode.WebviewPanel>();
+	private readonly pendingRecordOpenByPath = new Map<string, string>();
 
 	constructor(
 		private readonly context: vscode.ExtensionContext,
@@ -84,6 +85,7 @@ export class DatabaseEditorProvider implements vscode.CustomTextEditorProvider {
 					case 'ready':
 						this.sendSnapshot(panel.webview, current, activeViewId);
 						this.sendTheme(panel.webview);
+						this.flushPendingRecordOpen(filePath);
 						break;
 					case 'update-record':
 						this.manager.updateRecord(current.db.id, msg.recordId, msg.fieldId, msg.value);
@@ -94,8 +96,29 @@ export class DatabaseEditorProvider implements vscode.CustomTextEditorProvider {
 					case 'delete-record':
 						this.manager.deleteRecord(current.db.id, msg.recordId);
 						break;
+					case 'duplicate-record':
+						this.manager.duplicateRecord(current.db.id, msg.recordId);
+						break;
 					case 'move-record':
 						this.manager.updateRecord(current.db.id, msg.recordId, msg.fieldId, msg.value);
+						break;
+					case 'update-record-in-database':
+						this.manager.updateRecord(msg.databaseId, msg.recordId, msg.fieldId, msg.value);
+						break;
+					case 'create-related-record':
+						this.manager.createRelatedRecord(
+							msg.sourceDatabaseId,
+							msg.sourceRecordId,
+							msg.relationFieldId,
+							msg.targetDatabaseId,
+							msg.title,
+						);
+						break;
+					case 'update-relation-links':
+						this.manager.updateRecord(msg.databaseId, msg.recordId, msg.relationFieldId, msg.recordIds);
+						break;
+					case 'update-header-fields':
+						this.manager.updateHeaderFields(msg.databaseId, msg.fieldIds);
 						break;
 					case 'switch-view':
 						activeViewId = msg.viewId;
@@ -129,6 +152,9 @@ export class DatabaseEditorProvider implements vscode.CustomTextEditorProvider {
 					case 'update-schema':
 						this.manager.updateSchema(current.db.id, msg.schema);
 						break;
+					case 'open-record':
+						this.openRecord(msg.databaseId ?? current.db.id, msg.recordId, filePath);
+						break;
 				}
 			},
 		);
@@ -156,6 +182,12 @@ export class DatabaseEditorProvider implements vscode.CustomTextEditorProvider {
 		const allDatabases = allEntries.map((e) => ({
 			id: e.db.id,
 			name: e.db.name,
+		}));
+		const databaseCatalog = allEntries.map((e) => ({
+			id: e.db.id,
+			name: e.db.name,
+			schema: e.db.schema,
+			records: e.db.records,
 		}));
 
 		// Build relation title lookup: collect all referenced record IDs
@@ -190,9 +222,50 @@ export class DatabaseEditorProvider implements vscode.CustomTextEditorProvider {
 			activeViewId,
 			processedRecords,
 			allDatabases,
+			databaseCatalog,
 			relationTitles,
+			syncStatus: this.manager.getSyncStatus(entry.db.id),
 		};
 		webview.postMessage(msg);
+	}
+
+	private openRecord(databaseId: string, recordId: string, fromPath: string): void {
+		const target = this.manager.getById(databaseId);
+		if (!target) return;
+
+		// Same editor: open record directly in current webview.
+		if (target.path === fromPath) {
+			const panel = this.webviews.get(fromPath);
+			if (!panel) return;
+			panel.reveal(panel.viewColumn, false);
+			panel.webview.postMessage({ type: 'open-record-ui', recordId } satisfies HostMessage);
+			return;
+		}
+
+		// Already-open editor for target DB.
+		const existing = this.webviews.get(target.path);
+		if (existing) {
+			existing.reveal(existing.viewColumn, false);
+			existing.webview.postMessage({ type: 'open-record-ui', recordId } satisfies HostMessage);
+			return;
+		}
+
+		// Open target DB editor, then replay once webview is ready.
+		this.pendingRecordOpenByPath.set(target.path, recordId);
+		void vscode.commands.executeCommand(
+			'vscode.openWith',
+			vscode.Uri.file(target.path),
+			EDITOR_VIEW_TYPE,
+		);
+	}
+
+	private flushPendingRecordOpen(filePath: string): void {
+		const recordId = this.pendingRecordOpenByPath.get(filePath);
+		if (!recordId) return;
+		const panel = this.webviews.get(filePath);
+		if (!panel) return;
+		panel.webview.postMessage({ type: 'open-record-ui', recordId } satisfies HostMessage);
+		this.pendingRecordOpenByPath.delete(filePath);
 	}
 
 	private sendTheme(webview: vscode.Webview): void {
