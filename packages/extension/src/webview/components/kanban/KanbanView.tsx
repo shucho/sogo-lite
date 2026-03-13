@@ -7,7 +7,7 @@
  * ---
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
 	DndContext,
 	type DragEndEvent,
@@ -29,7 +29,8 @@ interface KanbanViewProps {
 	onOpenRecord: (recordId: string) => void;
 }
 
-export function KanbanView({ database, view, records, onOpenRecord }: KanbanViewProps) {
+export function KanbanView({ database, view, records, relationTitles, onOpenRecord }: KanbanViewProps) {
+	const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set());
 	const groupField = useMemo(
 		() => database.schema.find((f) => f.id === view.groupBy),
 		[database.schema, view.groupBy],
@@ -59,7 +60,7 @@ export function KanbanView({ database, view, records, onOpenRecord }: KanbanView
 			col.records.push(record);
 		}
 
-		return cols;
+		return cols.filter((col) => col.records.length > 0 || col.value !== '');
 	}, [groupField, records]);
 
 	if (!groupField) {
@@ -86,6 +87,16 @@ export function KanbanView({ database, view, records, onOpenRecord }: KanbanView
 		});
 	}
 
+	function createRecordForColumn(groupValue: string) {
+		if (!groupField) return;
+		postCommand({
+			type: 'create-record',
+			values: {
+				[groupField.id]: groupValue || null,
+			},
+		});
+	}
+
 	return (
 		<DndContext sensors={sensors} onDragEnd={handleDragEnd}>
 			<div className="flex gap-3 p-3 overflow-x-auto flex-1">
@@ -97,6 +108,18 @@ export function KanbanView({ database, view, records, onOpenRecord }: KanbanView
 						records={col.records}
 						groupField={groupField}
 						database={database}
+						relationTitles={relationTitles}
+						cardFieldIds={view.cardFields}
+						collapsed={collapsedColumns.has(col.value)}
+						onToggleCollapse={() => {
+							setCollapsedColumns((prev) => {
+								const next = new Set(prev);
+								if (next.has(col.value)) next.delete(col.value);
+								else next.add(col.value);
+								return next;
+							});
+						}}
+						onAddRecord={() => createRecordForColumn(col.value)}
 						onOpenRecord={onOpenRecord}
 					/>
 				))}

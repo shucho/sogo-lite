@@ -8,69 +8,56 @@
  */
 
 import { useState } from 'react';
-import type { DBView, Field } from 'sogo-db-core';
+import type { Database, DBView, Field } from 'sogo-db-core';
+import type { SyncStatus } from '../protocol.js';
 import { postCommand } from '../hooks/useVSCodeApi.js';
 import { SortFilterPanel } from './SortFilterPanel.js';
-import { FieldsPicker } from './FieldsPicker.js';
+import { GalleryViewSettingsPanel } from './gallery/GalleryViewSettingsPanel.js';
 
 interface ToolbarProps {
 	view: DBView;
 	schema: Field[];
+	database: Database;
+	syncStatus: SyncStatus;
+	onManageFields: () => void;
 }
 
-export function Toolbar({ view, schema }: ToolbarProps) {
+export function Toolbar({ view, schema, database, syncStatus, onManageFields }: ToolbarProps) {
 	const [showSort, setShowSort] = useState(false);
 	const [showFilter, setShowFilter] = useState(false);
-	const [showFields, setShowFields] = useState(false);
+	const [showViewSettings, setShowViewSettings] = useState(false);
 
 	const sortCount = view.sort.length;
 	const filterCount = view.filter.length;
 	const hiddenCount = view.hiddenFields.length;
-
+	const syncLabel =
+		syncStatus.kind === 'syncing'
+			? 'Syncing'
+			: syncStatus.kind === 'synced'
+				? 'Synced'
+				: syncStatus.kind === 'failed'
+					? 'Sync failed'
+					: 'Local only';
 	return (
-		<div className="flex items-center gap-2 px-3 py-1.5 border-b text-xs" style={{ borderColor: 'var(--vscode-panel-border)' }}>
-			<button
-				className="rounded px-2 py-1 hover:opacity-80"
-				style={{
-					backgroundColor: 'var(--vscode-button-background)',
-					color: 'var(--vscode-button-foreground)',
-				}}
-				onClick={() => postCommand({ type: 'create-record' })}
+		<>
+			<span
+				className={`db-sync-status ${
+					syncStatus.kind === 'syncing'
+						? 'db-sync-status--syncing'
+						: syncStatus.kind === 'synced'
+							? 'db-sync-status--synced'
+							: syncStatus.kind === 'failed'
+								? 'db-sync-status--error'
+								: 'db-sync-status--disabled'
+				}`}
+				title={syncStatus.message || syncLabel}
 			>
-				+ New
-			</button>
-
-			<div className="flex-1" />
-
+				{syncLabel}
+			</span>
 			<div className="relative">
 				<button
-					className="rounded px-2 py-1 hover:opacity-80"
-					style={{
-						backgroundColor: sortCount > 0 ? 'var(--vscode-button-background)' : 'transparent',
-						color: sortCount > 0 ? 'var(--vscode-button-foreground)' : 'var(--vscode-foreground)',
-					}}
-					onClick={() => { setShowSort(!showSort); setShowFilter(false); setShowFields(false); }}
-				>
-					Sort{sortCount > 0 ? ` (${sortCount})` : ''}
-				</button>
-				{showSort && (
-					<SortFilterPanel
-						mode="sort"
-						view={view}
-						schema={schema}
-						onClose={() => setShowSort(false)}
-					/>
-				)}
-			</div>
-
-			<div className="relative">
-				<button
-					className="rounded px-2 py-1 hover:opacity-80"
-					style={{
-						backgroundColor: filterCount > 0 ? 'var(--vscode-button-background)' : 'transparent',
-						color: filterCount > 0 ? 'var(--vscode-button-foreground)' : 'var(--vscode-foreground)',
-					}}
-					onClick={() => { setShowFilter(!showFilter); setShowSort(false); setShowFields(false); }}
+					className={`db-btn ${filterCount > 0 ? 'db-btn-active' : ''}`}
+					onClick={() => { setShowFilter(!showFilter); setShowSort(false); setShowViewSettings(false); }}
 				>
 					Filter{filterCount > 0 ? ` (${filterCount})` : ''}
 				</button>
@@ -86,23 +73,55 @@ export function Toolbar({ view, schema }: ToolbarProps) {
 
 			<div className="relative">
 				<button
-					className="rounded px-2 py-1 hover:opacity-80"
-					style={{
-						backgroundColor: hiddenCount > 0 ? 'var(--vscode-button-background)' : 'transparent',
-						color: hiddenCount > 0 ? 'var(--vscode-button-foreground)' : 'var(--vscode-foreground)',
-					}}
-					onClick={() => { setShowFields(!showFields); setShowSort(false); setShowFilter(false); }}
+					className={`db-btn ${sortCount > 0 ? 'db-btn-active' : ''}`}
+					onClick={() => { setShowSort(!showSort); setShowFilter(false); setShowViewSettings(false); }}
 				>
-					Fields{hiddenCount > 0 ? ` (${hiddenCount} hidden)` : ''}
+					Sort{sortCount > 0 ? ` (${sortCount})` : ''}
 				</button>
-				{showFields && (
-					<FieldsPicker
+				{showSort && (
+					<SortFilterPanel
+						mode="sort"
 						view={view}
 						schema={schema}
-						onClose={() => setShowFields(false)}
+						onClose={() => setShowSort(false)}
 					/>
 				)}
 			</div>
-		</div>
+
+			<div className="relative">
+				<button
+					className={`db-btn ${hiddenCount > 0 ? 'db-btn-active' : ''}`}
+					onClick={() => {
+						setShowSort(false);
+						setShowFilter(false);
+						setShowViewSettings(false);
+						onManageFields();
+					}}
+				>
+					Fields{hiddenCount > 0 ? ` (${hiddenCount} hidden)` : ''}
+				</button>
+			</div>
+
+			{view.type === 'gallery' && (
+				<div className="relative">
+					<button
+						className={`db-btn ${view.cardCoverField ? 'db-btn-active' : ''}`}
+						onClick={() => { setShowViewSettings(!showViewSettings); setShowSort(false); setShowFilter(false); }}
+					>
+						View
+					</button>
+					{showViewSettings && (
+						<GalleryViewSettingsPanel
+							view={view}
+							database={database}
+							onClose={() => setShowViewSettings(false)}
+						/>
+					)}
+					</div>
+				)}
+			<button className="db-btn db-btn-primary" onClick={() => postCommand({ type: 'create-record' })}>
+				+ Record
+			</button>
+		</>
 	);
 }
