@@ -10,8 +10,8 @@
 import { useMemo, useState } from 'react';
 import type { Database, DBRecord, DBView } from 'sogo-db-core';
 import { getRecordTitle } from 'sogo-db-core';
-import { postCommand } from '../../hooks/useVSCodeApi.js';
 import { EmptyState } from '../shared/EmptyState.js';
+import { postCommand } from '../../hooks/useVSCodeApi.js';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -30,7 +30,9 @@ export function CalendarView({ database, view, records, onOpenRecord }: Calendar
 	});
 
 	const dateField = useMemo(
-		() => database.schema.find((f) => f.id === view.groupBy),
+		() =>
+			database.schema.find((f) => f.id === view.groupBy && f.type === 'date')
+			?? database.schema.find((f) => f.type === 'date'),
 		[database.schema, view.groupBy],
 	);
 
@@ -76,6 +78,17 @@ export function CalendarView({ database, view, records, onOpenRecord }: Calendar
 		year: 'numeric',
 	});
 
+	function createRecord(dateValue?: string) {
+		if (!dateField) {
+			postCommand({ type: 'create-record' });
+			return;
+		}
+		postCommand({
+			type: 'create-record',
+			values: dateValue ? { [dateField.id]: dateValue } : undefined,
+		});
+	}
+
 	return (
 		<div className="flex flex-col flex-1 p-3">
 			<div className="flex items-center justify-between mb-3">
@@ -92,18 +105,27 @@ export function CalendarView({ database, view, records, onOpenRecord }: Calendar
 					&lt;
 				</button>
 				<span className="text-sm font-medium">{monthLabel}</span>
-				<button
-					className="px-2 py-1 rounded text-xs hover:opacity-80"
-					style={{ backgroundColor: 'var(--vscode-button-secondaryBackground)' }}
-					onClick={() =>
-						setMonth((m) => {
-							const d = new Date(m.year, m.month + 1);
-							return { year: d.getFullYear(), month: d.getMonth() };
-						})
-					}
-				>
-					&gt;
-				</button>
+				<div className="flex items-center gap-2">
+					<button
+						className="px-2 py-1 rounded text-xs hover:opacity-80"
+						style={{ backgroundColor: 'var(--vscode-button-secondaryBackground)' }}
+						onClick={() =>
+							setMonth((m) => {
+								const d = new Date(m.year, m.month + 1);
+								return { year: d.getFullYear(), month: d.getMonth() };
+							})
+						}
+					>
+						&gt;
+					</button>
+					<button
+						className="px-2 py-1 rounded text-xs hover:opacity-80"
+						style={{ backgroundColor: 'var(--vscode-button-background)', color: 'var(--vscode-button-foreground)' }}
+						onClick={() => createRecord()}
+					>
+						+ Record
+					</button>
+				</div>
 			</div>
 
 			<div className="grid grid-cols-7 gap-px flex-1" style={{ backgroundColor: 'var(--vscode-panel-border)' }}>
@@ -124,6 +146,11 @@ export function CalendarView({ database, view, records, onOpenRecord }: Calendar
 							backgroundColor: day.date
 								? 'var(--vscode-editor-background)'
 								: 'var(--vscode-sideBar-background)',
+						}}
+						onDoubleClick={() => {
+							if (!day.date || !dateField) return;
+							const dateValue = `${month.year}-${String(month.month + 1).padStart(2, '0')}-${String(day.date).padStart(2, '0')}`;
+							createRecord(dateValue);
 						}}
 					>
 						{day.date && (

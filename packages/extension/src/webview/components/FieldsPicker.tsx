@@ -7,18 +7,37 @@
  * ---
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DBView, Field } from 'sogo-db-core';
 import { postCommand } from '../hooks/useVSCodeApi.js';
 
 interface FieldsPickerProps {
 	view: DBView;
 	schema: Field[];
+	onManageFields: () => void;
 	onClose: () => void;
 }
 
-export function FieldsPicker({ view, schema, onClose }: FieldsPickerProps) {
+export function FieldsPicker({ view, schema, onManageFields, onClose }: FieldsPickerProps) {
 	const panelRef = useRef<HTMLDivElement>(null);
+	const [dragSourceId, setDragSourceId] = useState<string | null>(null);
+	const [order, setOrder] = useState<string[]>(() => {
+		const base = view.fieldOrder?.length ? [...view.fieldOrder] : schema.map((field) => field.id);
+		for (const field of schema) {
+			if (!base.includes(field.id)) base.push(field.id);
+		}
+		return base;
+	});
+	const [hidden, setHidden] = useState<Set<string>>(() => new Set(view.hiddenFields ?? []));
+
+	useEffect(() => {
+		const base = view.fieldOrder?.length ? [...view.fieldOrder] : schema.map((field) => field.id);
+		for (const field of schema) {
+			if (!base.includes(field.id)) base.push(field.id);
+		}
+		setOrder(base);
+		setHidden(new Set(view.hiddenFields ?? []));
+	}, [view.fieldOrder, view.hiddenFields, schema]);
 
 	useEffect(() => {
 		function handleClickOutside(e: MouseEvent) {
@@ -30,52 +49,104 @@ export function FieldsPicker({ view, schema, onClose }: FieldsPickerProps) {
 		return () => document.removeEventListener('mousedown', handleClickOutside);
 	}, [onClose]);
 
-	function toggleField(fieldId: string) {
-		const hidden = [...view.hiddenFields];
-		const idx = hidden.indexOf(fieldId);
-		if (idx >= 0) {
-			hidden.splice(idx, 1);
-		} else {
-			hidden.push(fieldId);
-		}
-		postCommand({ type: 'update-view', viewId: view.id, changes: { hiddenFields: hidden } });
+	const fieldById = useMemo(() => new Map(schema.map((field) => [field.id, field])), [schema]);
+
+	function flush(nextOrder: string[], nextHidden: Set<string>) {
+		postCommand({
+			type: 'update-view',
+			viewId: view.id,
+			changes: {
+				fieldOrder: nextOrder,
+				hiddenFields: [...nextHidden],
+			},
+		});
 	}
 
-	function showAll() {
-		postCommand({ type: 'update-view', viewId: view.id, changes: { hiddenFields: [] } });
+	function toggleField(fieldId: string, visible: boolean) {
+		setHidden((prev) => {
+			const next = new Set(prev);
+			if (visible) next.delete(fieldId);
+			else next.add(fieldId);
+			flush(order, next);
+			return next;
+		});
 	}
 
 	function hideAll() {
-		// Keep first text field visible (title)
-		const titleField = schema.find((f) => f.type === 'text');
-		const hidden = schema.filter((f) => f.id !== titleField?.id).map((f) => f.id);
-		postCommand({ type: 'update-view', viewId: view.id, changes: { hiddenFields: hidden } });
+		const next = new Set(schema.map((field) => field.id));
+		setHidden(next);
+		flush(order, next);
+	}
+
+	function showAll() {
+		const next = new Set<string>();
+		setHidden(next);
+		flush(order, next);
+	}
+
+	function reorder(targetId: string) {
+		if (!dragSourceId || dragSourceId === targetId) return;
+		setOrder((prev) => {
+			const next = [...prev];
+			const src = next.indexOf(dragSourceId);
+			const dst = next.indexOf(targetId);
+			if (src < 0 || dst < 0) return prev;
+			next.splice(src, 1);
+			next.splice(dst, 0, dragSourceId);
+			flush(next, hidden);
+			return next;
+		});
 	}
 
 	return (
 		<div
 			ref={panelRef}
-			className="absolute right-0 top-full z-50 mt-1 rounded shadow-lg p-3 min-w-[200px]"
-			style={{ backgroundColor: 'var(--vscode-dropdown-background)', border: '1px solid var(--vscode-dropdown-border)' }}
+			className="db-dropdown-panel db-fields-panel absolute right-0 top-full z-50 mt-1"
+			style={{ minWidth: 240 }}
 		>
-			<div className="flex items-center justify-between mb-2">
-				<div className="text-xs font-medium">Fields</div>
-				<div className="flex gap-2">
-					<button className="text-xs opacity-60 hover:opacity-100" onClick={showAll}>Show all</button>
-					<button className="text-xs opacity-60 hover:opacity-100" onClick={hideAll}>Hide all</button>
-				</div>
+			<div className="db-panel-section-title">Fields</div>
+			<div className="db-fields-list max-h-[260px] overflow-y-auto pr-1">
+				{order.map((fieldId) => {
+					const field = fieldById.get(fieldId);
+					if (!field) return null;
+					return (
+						<div
+							key={field.id}
+							className="db-fields-row"
+							draggable
+							onDragStart={() => setDragSourceId(field.id)}
+							onDragEnd={() => setDragSourceId(null)}
+							onDragOver={(e) => e.preventDefault()}
+							onDrop={(e) => {
+								e.preventDefault();
+								reorder(field.id);
+								setDragSourceId(null);
+							}}
+						>
+							<span className="db-fields-handle select-none">⠿</span>
+							<input
+								type="checkbox"
+								checked={!hidden.has(field.id)}
+								onChange={(e) => toggleField(field.id, e.target.checked)}
+							/>
+							<span className="db-fields-name truncate">{field.name}</span>
+						</div>
+					);
+				})}
 			</div>
-			{schema.map((field) => (
-				<label key={field.id} className="flex items-center gap-2 py-0.5 text-xs cursor-pointer">
-					<input
-						type="checkbox"
-						checked={!view.hiddenFields.includes(field.id)}
-						onChange={() => toggleField(field.id)}
-					/>
-					{field.name}
-					<span className="ml-auto opacity-40">{field.type}</span>
-				</label>
-			))}
+			<div className="db-panel-add flex items-center gap-2">
+				<button className="db-btn" onClick={hideAll}>Hide all</button>
+				<button className="db-btn" onClick={showAll}>Show all</button>
+				<button
+					className="db-btn ml-auto"
+					onClick={() => {
+						onClose();
+						onManageFields();
+					}}
+				>
+					Manage fields...
+				</button>
+			</div>
 		</div>
 	);
 }

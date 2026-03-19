@@ -11,18 +11,49 @@ import { useEffect, useRef } from 'react';
 import type { DBView, Field } from 'sogo-db-core';
 import { postCommand } from '../hooks/useVSCodeApi.js';
 
-const FILTER_OPS = [
+const FILTER_OPS_TEXT = [
 	{ value: 'contains', label: 'contains' },
 	{ value: 'not_contains', label: 'does not contain' },
 	{ value: 'equals', label: 'equals' },
 	{ value: 'not_equals', label: 'does not equal' },
 	{ value: 'is_empty', label: 'is empty' },
 	{ value: 'is_not_empty', label: 'is not empty' },
-	{ value: 'gt', label: '>' },
-	{ value: 'gte', label: '>=' },
-	{ value: 'lt', label: '<' },
-	{ value: 'lte', label: '<=' },
 ];
+
+const FILTER_OPS_NUMBER = [
+	{ value: 'equals', label: '=' },
+	{ value: 'not_equals', label: '\u2260' },
+	{ value: 'gt', label: '>' },
+	{ value: 'gte', label: '\u2265' },
+	{ value: 'lt', label: '<' },
+	{ value: 'lte', label: '\u2264' },
+	{ value: 'is_empty', label: 'is empty' },
+	{ value: 'is_not_empty', label: 'is not empty' },
+];
+
+const FILTER_OPS_CHECKBOX = [
+	{ value: 'equals', label: 'is' },
+	{ value: 'not_equals', label: 'is not' },
+	{ value: 'is_empty', label: 'is empty' },
+	{ value: 'is_not_empty', label: 'is not empty' },
+];
+
+function getOpsForField(field: Field | undefined) {
+	if (!field) return FILTER_OPS_TEXT;
+	if (field.type === 'number') return FILTER_OPS_NUMBER;
+	if (field.type === 'checkbox') return FILTER_OPS_CHECKBOX;
+	return FILTER_OPS_TEXT;
+}
+
+function getDefaultOpForField(field: Field | undefined): string {
+	if (!field) return 'contains';
+	if (field.type === 'number' || field.type === 'checkbox') return 'equals';
+	return 'contains';
+}
+
+function opNeedsValue(op: string): boolean {
+	return op !== 'is_empty' && op !== 'is_not_empty';
+}
 
 interface SortFilterPanelProps {
 	mode: 'sort' | 'filter';
@@ -50,21 +81,14 @@ export function SortFilterPanel({ mode, view, schema, onClose }: SortFilterPanel
 
 	if (mode === 'sort') {
 		const sorts = [...view.sort];
-
 		return (
-			<div
-				ref={panelRef}
-				className="absolute right-0 top-full z-50 mt-1 rounded shadow-lg p-3 min-w-[280px]"
-				style={{ backgroundColor: 'var(--vscode-dropdown-background)', border: '1px solid var(--vscode-dropdown-border)' }}
-			>
-				<div className="text-xs font-medium mb-2">Sort</div>
-				{sorts.map((sort, i) => {
-					const field = schema.find((f) => f.id === sort.fieldId);
-					return (
-						<div key={i} className="flex items-center gap-1 mb-1">
+			<div ref={panelRef} className="db-dropdown-panel absolute right-0 top-full z-50 mt-1">
+				<div className="db-sort-panel-content">
+					{sorts.length === 0 && <div className="db-panel-empty">No sorts applied</div>}
+					{sorts.map((sort, i) => (
+						<div key={i} className="db-panel-row">
 							<select
-								className="flex-1 rounded px-1 py-0.5 text-xs"
-								style={{ backgroundColor: 'var(--vscode-input-background)', color: 'var(--vscode-input-foreground)' }}
+								className="db-select"
 								value={sort.fieldId}
 								onChange={(e) => {
 									sorts[i] = { ...sort, fieldId: e.target.value };
@@ -75,112 +99,138 @@ export function SortFilterPanel({ mode, view, schema, onClose }: SortFilterPanel
 									<option key={f.id} value={f.id}>{f.name}</option>
 								))}
 							</select>
-							<select
-								className="rounded px-1 py-0.5 text-xs"
-								style={{ backgroundColor: 'var(--vscode-input-background)', color: 'var(--vscode-input-foreground)' }}
-								value={sort.direction}
-								onChange={(e) => {
-									sorts[i] = { ...sort, direction: e.target.value as 'asc' | 'desc' };
+							<button
+								className="db-btn"
+								onClick={() => {
+									sorts[i] = {
+										...sort,
+										direction: sort.direction === 'asc' ? 'desc' : 'asc',
+									};
 									updateView({ sort: sorts });
 								}}
 							>
-								<option value="asc">Asc</option>
-								<option value="desc">Desc</option>
-							</select>
+								{sort.direction === 'asc' ? '\u2191 Asc' : '\u2193 Desc'}
+							</button>
 							<button
-								className="text-xs opacity-50 hover:opacity-100 px-1"
+								className="db-icon-btn"
 								onClick={() => {
 									sorts.splice(i, 1);
 									updateView({ sort: sorts });
 								}}
+								title="Remove sort"
 							>
-								x
+								\u2715
 							</button>
 						</div>
-					);
-				})}
-				<button
-					className="text-xs opacity-60 hover:opacity-100 mt-1"
-					onClick={() => {
-						sorts.push({ fieldId: schema[0]?.id ?? '', direction: 'asc' });
-						updateView({ sort: sorts });
-					}}
-				>
-					+ Add sort
-				</button>
+					))}
+					<div className="db-panel-add">
+						<button
+							className="db-btn"
+							onClick={() => {
+								if (!schema[0]) return;
+								sorts.push({ fieldId: schema[0].id, direction: 'asc' });
+								updateView({ sort: sorts });
+							}}
+						>
+							+ Add sort
+						</button>
+						{sorts.length > 0 && (
+							<button className="db-btn" onClick={() => updateView({ sort: [] })}>
+								Clear
+							</button>
+						)}
+					</div>
+				</div>
 			</div>
 		);
 	}
 
-	// Filter mode
 	const filters = [...view.filter];
-
 	return (
-		<div
-			ref={panelRef}
-			className="absolute right-0 top-full z-50 mt-1 rounded shadow-lg p-3 min-w-[340px]"
-			style={{ backgroundColor: 'var(--vscode-dropdown-background)', border: '1px solid var(--vscode-dropdown-border)' }}
-		>
-			<div className="text-xs font-medium mb-2">Filter</div>
-			{filters.map((f, i) => (
-				<div key={i} className="flex items-center gap-1 mb-1">
-					<select
-						className="rounded px-1 py-0.5 text-xs"
-						style={{ backgroundColor: 'var(--vscode-input-background)', color: 'var(--vscode-input-foreground)' }}
-						value={f.fieldId}
-						onChange={(e) => {
-							filters[i] = { ...f, fieldId: e.target.value };
-							updateView({ filter: filters });
-						}}
-					>
-						{schema.map((s) => (
-							<option key={s.id} value={s.id}>{s.name}</option>
-						))}
-					</select>
-					<select
-						className="rounded px-1 py-0.5 text-xs"
-						style={{ backgroundColor: 'var(--vscode-input-background)', color: 'var(--vscode-input-foreground)' }}
-						value={f.op}
-						onChange={(e) => {
-							filters[i] = { ...f, op: e.target.value };
-							updateView({ filter: filters });
-						}}
-					>
-						{FILTER_OPS.map((op) => (
-							<option key={op.value} value={op.value}>{op.label}</option>
-						))}
-					</select>
-					{!['is_empty', 'is_not_empty'].includes(f.op) && (
-						<input
-							className="flex-1 rounded px-1 py-0.5 text-xs"
-							style={{ backgroundColor: 'var(--vscode-input-background)', color: 'var(--vscode-input-foreground)' }}
-							value={f.value}
-							onChange={(e) => {
-								filters[i] = { ...f, value: e.target.value };
-								updateView({ filter: filters });
-							}}
-						/>
-					)}
+		<div ref={panelRef} className="db-dropdown-panel absolute right-0 top-full z-50 mt-1">
+			<div className="db-filter-panel-content">
+				{filters.length === 0 && <div className="db-panel-empty">No filters applied</div>}
+				{filters.map((filter, i) => {
+					const selectedField = schema.find((s) => s.id === filter.fieldId);
+					const ops = getOpsForField(selectedField);
+					return (
+						<div key={i} className="db-panel-row">
+							<select
+								className="db-select"
+								value={filter.fieldId}
+								onChange={(e) => {
+									const nextFieldId = e.target.value;
+									const nextField = schema.find((s) => s.id === nextFieldId);
+									filters[i] = {
+										...filter,
+										fieldId: nextFieldId,
+										op: getDefaultOpForField(nextField),
+										value: '',
+									};
+									updateView({ filter: filters });
+								}}
+							>
+								{schema.map((s) => (
+									<option key={s.id} value={s.id}>{s.name}</option>
+								))}
+							</select>
+							<select
+								className="db-select"
+								value={filter.op}
+								onChange={(e) => {
+									filters[i] = { ...filter, op: e.target.value };
+									updateView({ filter: filters });
+								}}
+							>
+								{ops.map((op) => (
+									<option key={op.value} value={op.value}>{op.label}</option>
+								))}
+							</select>
+							{opNeedsValue(filter.op) && (
+								<input
+									className="db-input"
+									value={filter.value}
+									onChange={(e) => {
+										filters[i] = { ...filter, value: e.target.value };
+										updateView({ filter: filters });
+									}}
+								/>
+							)}
+							<button
+								className="db-icon-btn"
+								onClick={() => {
+									filters.splice(i, 1);
+									updateView({ filter: filters });
+								}}
+								title="Remove filter"
+							>
+								\u2715
+							</button>
+						</div>
+					);
+				})}
+				<div className="db-panel-add">
 					<button
-						className="text-xs opacity-50 hover:opacity-100 px-1"
+						className="db-btn"
 						onClick={() => {
-							filters.splice(i, 1);
+							if (!schema[0]) return;
+							filters.push({
+								fieldId: schema[0].id,
+								op: getDefaultOpForField(schema[0]),
+								value: '',
+							});
 							updateView({ filter: filters });
 						}}
 					>
-						x
+						+ Add filter
 					</button>
+					{filters.length > 0 && (
+						<button className="db-btn" onClick={() => updateView({ filter: [] })}>
+							Clear
+						</button>
+					)}
 				</div>
-			))}
-			<button
-				className="text-xs opacity-60 hover:opacity-100 mt-1"
-				onClick={() => {
-					filters.push({ fieldId: schema[0]?.id ?? '', op: 'contains', value: '' });
-					updateView({ filter: filters });
-				}}
-			>
-				+ Add filter
-			</button>
+			</div>
 		</div>
 	);
 }

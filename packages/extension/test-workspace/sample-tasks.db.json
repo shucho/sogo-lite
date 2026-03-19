@@ -3,21 +3,89 @@
 	"name": "Sample Tasks",
 	"scope": "workspace",
 	"schema": [
-		{ "id": "f-title", "name": "Title", "type": "text" },
-		{ "id": "f-status", "name": "Status", "type": "status" },
-		{ "id": "f-priority", "name": "Priority", "type": "select", "options": ["Low", "Medium", "High", "Critical"] },
-		{ "id": "f-due", "name": "Due Date", "type": "date" },
-		{ "id": "f-effort", "name": "Effort", "type": "number" },
-		{ "id": "f-done", "name": "Completed", "type": "checkbox" },
-		{ "id": "f-tags", "name": "Tags", "type": "multiselect", "options": ["frontend", "backend", "docs", "bug", "feature"] },
-		{ "id": "f-url", "name": "Link", "type": "url" }
+		{
+			"id": "f-title",
+			"name": "Title",
+			"type": "text"
+		},
+		{
+			"id": "f-status",
+			"name": "Status",
+			"type": "status",
+			"options": [
+				"Not started",
+				"In progress",
+				"Done"
+			],
+			"optionColors": {
+				"Not started": "#6b7280",
+				"In progress": "#8b6b4a",
+				"Done": "#f59e0b"
+			}
+		},
+		{
+			"id": "f-priority",
+			"name": "Priority",
+			"type": "select",
+			"options": [
+				"Low",
+				"Medium",
+				"High",
+				"Critical"
+			],
+			"optionColors": {
+				"Low": "#6b7280",
+				"Medium": "#8b6b4a",
+				"High": "#f59e0b",
+				"Critical": "#10b981"
+			}
+		},
+		{
+			"id": "f-due",
+			"name": "Due Date",
+			"type": "date"
+		},
+		{
+			"id": "f-effort",
+			"name": "Effort",
+			"type": "number"
+		},
+		{
+			"id": "f-done",
+			"name": "Completed",
+			"type": "checkbox"
+		},
+		{
+			"id": "f-tags",
+			"name": "Tags",
+			"type": "multiselect",
+			"options": [
+				"frontend",
+				"backend",
+				"docs",
+				"bug",
+				"feature"
+			],
+			"optionColors": {
+				"frontend": "#6b7280",
+				"backend": "#8b6b4a",
+				"docs": "#f59e0b",
+				"bug": "#10b981",
+				"feature": "#3b82f6"
+			}
+		},
+		{
+			"id": "f-url",
+			"name": "Link",
+			"type": "url"
+		}
 	],
 	"views": [
 		{
 			"id": "v-table",
 			"name": "All Tasks",
 			"type": "table",
-			"sort": [{ "fieldId": "f-due", "direction": "asc" }],
+			"sort": [],
 			"filter": [],
 			"hiddenFields": []
 		},
@@ -45,7 +113,8 @@
 			"type": "gallery",
 			"sort": [],
 			"filter": [],
-			"hiddenFields": []
+			"hiddenFields": [],
+			"groupBy": "f-status"
 		},
 		{
 			"id": "v-list",
@@ -65,7 +134,22 @@
 			"f-due": "2026-02-20",
 			"f-effort": 5,
 			"f-done": true,
-			"f-tags": ["backend"],
+			"f-tags": [
+				"backend"
+			],
+			"f-url": "https://github.com/example/repo"
+		},
+		{
+			"id": "a39563d6-a394-4f2b-adcc-33743651a725",
+			"f-title": "Set up CI pipeline",
+			"f-status": "Not started",
+			"f-priority": "High",
+			"f-due": "2026-02-20",
+			"f-effort": 5,
+			"f-done": true,
+			"f-tags": [
+				"backend"
+			],
 			"f-url": "https://github.com/example/repo"
 		},
 		{
@@ -76,7 +160,10 @@
 			"f-due": "2026-03-01",
 			"f-effort": 8,
 			"f-done": false,
-			"f-tags": ["frontend", "feature"],
+			"f-tags": [
+				"frontend",
+				"feature"
+			],
 			"f-url": null
 		},
 		{
@@ -87,40 +174,37 @@
 			"f-due": "2026-03-15",
 			"f-effort": 3,
 			"f-done": false,
-			"f-tags": ["docs"],
+			"f-tags": [
+				"docs"
+			],
 			"f-url": null
 		},
 		{
 			"id": "rec-004",
 			"f-title": "Fix login redirect bug",
-			"f-status": "Done",
+			"f-status": "In progress",
 			"f-priority": "Critical",
 			"f-due": "2026-02-28",
 			"f-effort": 2,
 			"f-done": true,
-			"f-tags": ["backend", "bug"],
+			"f-tags": [
+				"backend",
+				"bug"
+			],
 			"f-url": null
 		},
 		{
 			"id": "rec-005",
 			"f-title": "Add dark mode toggle",
-			"f-status": "Not started",
+			"f-status": "Done",
 			"f-priority": "Medium",
 			"f-due": "2026-03-10",
 			"f-effort": 4,
 			"f-done": false,
-			"f-tags": ["frontend", "feature"],
-			"f-url": null
-		},
-		{
-			"id": "rec-006",
-			"f-title": "Database backup script",
-			"f-status": "Done",
-			"f-priority": "High",
-			"f-due": "2026-02-15",
-			"f-effort": 3,
-			"f-done": true,
-			"f-tags": ["backend"],
+			"f-tags": [
+				"frontend",
+				"feature"
+			],
 			"f-url": null
 		}
 	]
