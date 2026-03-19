@@ -7,10 +7,17 @@
  * ---
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import type { Database, DBRecord, DBView, Field } from 'sogo-db-core';
-import type { DatabaseSnapshot, HostMessage } from '../protocol.js';
+import type { HostMessage, SyncStatus } from '../protocol.js';
 import { postCommand } from './useVSCodeApi.js';
+
+export interface DatabaseCatalogEntry {
+	id: string;
+	name: string;
+	schema: Field[];
+	records: DBRecord[];
+}
 
 export interface DatabaseState {
 	database: Database | null;
@@ -18,7 +25,9 @@ export interface DatabaseState {
 	activeView: DBView | null;
 	processedRecords: DBRecord[];
 	allDatabases: Array<{ id: string; name: string }>;
+	databaseCatalog: DatabaseCatalogEntry[];
 	relationTitles: Record<string, string>;
+	syncStatus: SyncStatus;
 	loading: boolean;
 }
 
@@ -29,7 +38,9 @@ export function useDatabase(): DatabaseState {
 		activeView: null,
 		processedRecords: [],
 		allDatabases: [],
+		databaseCatalog: [],
 		relationTitles: {},
+		syncStatus: { kind: 'local', updatedAt: new Date().toISOString() },
 		loading: true,
 	});
 
@@ -44,7 +55,9 @@ export function useDatabase(): DatabaseState {
 					activeView,
 					processedRecords: msg.processedRecords,
 					allDatabases: msg.allDatabases,
+					databaseCatalog: msg.databaseCatalog ?? [],
 					relationTitles: msg.relationTitles ?? {},
+					syncStatus: msg.syncStatus ?? { kind: 'local', updatedAt: new Date().toISOString() },
 					loading: false,
 				});
 			}
