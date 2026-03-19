@@ -121,6 +121,9 @@ export class DatabaseEditorProvider implements vscode.CustomTextEditorProvider {
 						this.manager.updateHeaderFields(msg.databaseId, msg.fieldIds);
 						break;
 					case 'switch-view':
+						if (!current.db.views.some((view) => view.id === msg.viewId)) {
+							break;
+						}
 						activeViewId = msg.viewId;
 						this.sendSnapshot(panel.webview, current, activeViewId);
 						break;
@@ -137,15 +140,25 @@ export class DatabaseEditorProvider implements vscode.CustomTextEditorProvider {
 						this.manager.updateView(current.db.id, msg.viewId, msg.changes);
 						break;
 					case 'delete-view': {
-						const wasActive = msg.viewId === activeViewId;
+						const viewIndex = current.db.views.findIndex((view) => view.id === msg.viewId);
+						if (viewIndex === -1) {
+							break;
+						}
+						const fallbackViewId =
+							current.db.views[viewIndex + 1]?.id
+							?? current.db.views[viewIndex - 1]?.id
+							?? '';
 						this.manager.deleteView(current.db.id, msg.viewId).then(() => {
-							if (wasActive) {
-								const updated = this.manager.getByPath(filePath);
-								if (updated) {
-									activeViewId = updated.db.views[0]?.id ?? '';
-									this.sendSnapshot(panel.webview, updated, activeViewId);
-								}
+							const updated = this.manager.getByPath(filePath);
+							if (!updated) {
+								return;
 							}
+							if (msg.viewId === activeViewId) {
+								activeViewId = updated.db.views.some((view) => view.id === fallbackViewId)
+									? fallbackViewId
+									: updated.db.views[0]?.id ?? '';
+							}
+							this.sendSnapshot(panel.webview, updated, activeViewId);
 						});
 						break;
 					}

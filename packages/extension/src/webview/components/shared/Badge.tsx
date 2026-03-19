@@ -24,7 +24,7 @@ export function Badge({ label, color, onClick, active }: BadgeProps) {
 
 	return (
 		<span
-			className="inline-flex items-center rounded px-1.5 py-0.5 text-xs font-medium whitespace-nowrap transition-opacity"
+			className="db-select-badge transition-opacity"
 			style={{ backgroundColor: bg, color: fg, opacity, cursor: onClick ? 'pointer' : undefined }}
 			onClick={onClick}
 			role={onClick ? 'button' : undefined}

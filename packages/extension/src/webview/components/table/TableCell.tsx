@@ -16,9 +16,10 @@ interface TableCellProps {
 	field: Field;
 	database: Database;
 	relationTitles?: Record<string, string>;
+	onToggleCheckbox?: () => void;
 }
 
-export function TableCell({ record, field, database, relationTitles }: TableCellProps) {
+export function TableCell({ record, field, database, relationTitles, onToggleCheckbox }: TableCellProps) {
 	const value = record[field.id];
 	const displayValue = getFieldDisplayValue(record, field.id, database.schema, database);
 
@@ -30,19 +31,23 @@ export function TableCell({ record, field, database, relationTitles }: TableCell
 	switch (field.type) {
 		case 'checkbox':
 			return (
-				<span className="flex items-center">
-					{value === true ? (
-						<svg width="14" height="14" viewBox="0 0 16 16" fill="var(--vscode-focusBorder)">
-							<rect x="1" y="1" width="14" height="14" rx="2" />
-							<path d="M6.5 11.5l-3-3 1-1L6.5 9.5l5-5 1 1-6 6z" fill="var(--vscode-editor-background)" />
-						</svg>
-					) : (
-						<svg width="14" height="14" viewBox="0 0 16 16">
-							<rect x="1.5" y="1.5" width="13" height="13" rx="2" fill="none"
-								stroke="var(--vscode-foreground)" strokeOpacity="0.3" />
-						</svg>
-					)}
-				</span>
+				<button
+					type="button"
+					className="db-cell-checkbox-btn"
+					onClick={(e) => {
+						e.stopPropagation();
+						onToggleCheckbox?.();
+					}}
+				>
+					<svg
+						className={`db-cell-checkbox${value === true ? ' db-cell-checkbox--checked' : ''}`}
+						viewBox="0 0 14 14"
+						aria-hidden="true"
+					>
+						<rect className="db-cell-checkbox-box" x="1.25" y="1.25" width="11.5" height="11.5" rx="3" />
+						<path className="db-cell-checkbox-mark" d="M4 7.2 6.1 9.3 10 5.4" />
+					</svg>
+				</button>
 			);
 		case 'status':
 			return displayValue ? (

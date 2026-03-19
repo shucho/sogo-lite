@@ -6,24 +6,22 @@
  * @validated: null
  * ---
  *
- * Extension entry point — wires up DatabaseManager, TreeView, FileWatcher, Editor, Commands.
+ * Extension entry point — wires up DatabaseManager, Sidebar, FileWatcher, Editor, Commands.
  */
 
 import * as vscode from 'vscode';
 import { DatabaseManager } from './host/DatabaseManager.js';
-import { DatabaseTreeProvider } from './host/DatabaseTreeProvider.js';
+import { DatabaseSidebarProvider } from './host/DatabaseSidebarProvider.js';
 import { DatabaseFileWatcher } from './host/DatabaseFileWatcher.js';
 import { DatabaseEditorProvider } from './host/DatabaseEditorProvider.js';
 import { registerCommands } from './host/commands.js';
-import { TREE_VIEW_ID } from './host/constants.js';
 
 export function activate(context: vscode.ExtensionContext): void {
 	const manager = new DatabaseManager(context);
 
-	// Sidebar tree view
-	const treeProvider = new DatabaseTreeProvider(manager);
+	// Sidebar database view
 	context.subscriptions.push(
-		vscode.window.registerTreeDataProvider(TREE_VIEW_ID, treeProvider),
+		DatabaseSidebarProvider.register(context, manager),
 	);
 
 	// File watcher

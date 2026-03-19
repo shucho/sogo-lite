@@ -101,23 +101,29 @@ export function ViewSwitcher({ views, activeViewId }: ViewSwitcherProps) {
 						/>
 					) : (
 						<button
+							type="button"
 							className={`db-tab ${view.id === activeViewId ? 'db-tab--active' : ''}`}
-							onClick={() => postCommand({ type: 'switch-view', viewId: view.id })}
+							onClick={(e) => {
+								e.preventDefault();
+								postCommand({ type: 'switch-view', viewId: view.id });
+							}}
 							onDoubleClick={(e) => {
 								e.stopPropagation();
 								startRename(view);
 							}}
-								title={view.name}
-							>
-								{VIEW_ICONS[view.type] ?? ''} {view.name}
-							</button>
-						)}
-						{views.length > 1 && editingViewId !== view.id && (
-							<button
-								className="db-tab-close"
-								onClick={(e) => {
-									e.stopPropagation();
-									postCommand({ type: 'delete-view', viewId: view.id });
+							title={view.name}
+						>
+							{VIEW_ICONS[view.type] ?? ''} {view.name}
+						</button>
+					)}
+					{views.length > 1 && editingViewId !== view.id && (
+						<button
+							type="button"
+							className="db-tab-close"
+							onClick={(e) => {
+								e.preventDefault();
+								e.stopPropagation();
+								postCommand({ type: 'delete-view', viewId: view.id });
 							}}
 							title="Delete view"
 						>
@@ -129,12 +135,16 @@ export function ViewSwitcher({ views, activeViewId }: ViewSwitcherProps) {
 				<div className="relative">
 					<button
 						ref={addBtnRef}
+						type="button"
 						className="db-add-view-btn"
-						onClick={() => setShowMenu((v) => !v)}
+						onClick={(e) => {
+							e.preventDefault();
+							setShowMenu((v) => !v);
+						}}
 						title="Add view"
 					>
-					+
-				</button>
+						+
+					</button>
 					{showMenu && (
 						<div
 							ref={menuRef}
@@ -143,15 +153,16 @@ export function ViewSwitcher({ views, activeViewId }: ViewSwitcherProps) {
 							{(['table', 'kanban', 'list', 'gallery', 'calendar'] as ViewType[]).map((vt) => (
 								<button
 									key={vt}
+									type="button"
 									className="db-context-menu-item block w-full text-left"
 									onClick={() => handleAdd(vt)}
 								>
-								{VIEW_ICONS[vt]} {VIEW_DEFAULT_NAMES[vt]}
-							</button>
-						))}
-					</div>
-				)}
+									{VIEW_ICONS[vt]} {VIEW_DEFAULT_NAMES[vt]}
+								</button>
+							))}
+						</div>
+					)}
+				</div>
 			</div>
-		</div>
 	);
 }

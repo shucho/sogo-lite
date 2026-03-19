@@ -54,6 +54,7 @@ export function App() {
 			case 'table':
 				return (
 					<TableView
+						key={activeView.id}
 						database={database}
 						view={activeView}
 						records={processedRecords}
@@ -63,13 +64,13 @@ export function App() {
 					/>
 				);
 			case 'kanban':
-				return <KanbanView database={database} view={activeView} records={processedRecords} relationTitles={relationTitles} onOpenRecord={onOpenRecord} />;
+				return <KanbanView key={activeView.id} database={database} view={activeView} records={processedRecords} relationTitles={relationTitles} onOpenRecord={onOpenRecord} />;
 			case 'calendar':
-				return <CalendarView database={database} view={activeView} records={processedRecords} relationTitles={relationTitles} onOpenRecord={onOpenRecord} />;
+				return <CalendarView key={activeView.id} database={database} view={activeView} records={processedRecords} relationTitles={relationTitles} onOpenRecord={onOpenRecord} />;
 			case 'gallery':
-				return <GalleryView database={database} view={activeView} records={processedRecords} relationTitles={relationTitles} onOpenRecord={onOpenRecord} />;
+				return <GalleryView key={activeView.id} database={database} view={activeView} records={processedRecords} relationTitles={relationTitles} onOpenRecord={onOpenRecord} />;
 			case 'list':
-				return <ListView database={database} view={activeView} records={processedRecords} relationTitles={relationTitles} onOpenRecord={onOpenRecord} />;
+				return <ListView key={activeView.id} database={database} view={activeView} records={processedRecords} relationTitles={relationTitles} onOpenRecord={onOpenRecord} />;
 			default:
 				return <EmptyState title={`Unknown view type: ${activeView.type}`} />;
 		}

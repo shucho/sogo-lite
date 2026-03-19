@@ -33,6 +33,8 @@ interface RecordGroup {
 	records: DBRecord[];
 }
 
+const DEFAULT_COLUMN_WIDTH = 168;
+
 const OPTION_COLOR_PRESETS: Array<{ label: string; value: string; swatch: string }> = [
 	{ label: 'Gray', value: '#6b7280', swatch: '⚫' },
 	{ label: 'Brown', value: '#8b6b4a', swatch: '🟤' },
@@ -333,19 +335,25 @@ export function TableView({
 		setShowAddField(false);
 	}
 
-	function startColumnResize(e: React.MouseEvent<HTMLDivElement>, fieldId: string, currentWidth: number) {
+	function startColumnResize(e: React.PointerEvent<HTMLDivElement>, fieldId: string, currentWidth: number) {
 		e.preventDefault();
 		e.stopPropagation();
 		const startX = e.clientX;
 		const startWidth = currentWidth;
 		let nextWidth = startWidth;
-		const onMove = (moveEvent: MouseEvent) => {
+		const prevCursor = document.body.style.cursor;
+		const prevUserSelect = document.body.style.userSelect;
+		document.body.style.cursor = 'col-resize';
+		document.body.style.userSelect = 'none';
+		const onMove = (moveEvent: PointerEvent) => {
 			nextWidth = Math.max(80, startWidth + moveEvent.clientX - startX);
 			setColumnWidths((prev) => ({ ...prev, [fieldId]: nextWidth }));
 		};
 		const onUp = () => {
-			document.removeEventListener('mousemove', onMove);
-			document.removeEventListener('mouseup', onUp);
+			window.removeEventListener('pointermove', onMove);
+			window.removeEventListener('pointerup', onUp);
+			document.body.style.cursor = prevCursor;
+			document.body.style.userSelect = prevUserSelect;
 			postCommand({
 				type: 'update-view',
 				viewId: view.id,
@@ -358,8 +366,8 @@ export function TableView({
 				},
 			});
 		};
-		document.addEventListener('mousemove', onMove);
-		document.addEventListener('mouseup', onUp);
+		window.addEventListener('pointermove', onMove);
+		window.addEventListener('pointerup', onUp, { once: true });
 	}
 
 	function renderRow(record: DBRecord) {
@@ -368,6 +376,7 @@ export function TableView({
 			&& field.type !== 'lastEditedAt'
 			&& field.type !== 'formula'
 			&& field.type !== 'rollup';
+		const firstVisibleFieldId = visibleFields[0]?.id;
 
 		return (
 			<tr key={record.id} className="db-row">
@@ -383,15 +392,29 @@ export function TableView({
 						onClick={(e) => e.stopPropagation()}
 					/>
 				</td>
-				{visibleFields.map((field) => (
-					<td
-						key={field.id}
-						className="db-td"
-						style={{
-							width: columnWidths[field.id] ?? undefined,
-						}}
+										{visibleFields.map((field) => {
+											const fieldWidth = columnWidths[field.id] ?? DEFAULT_COLUMN_WIDTH;
+											return (
+											<td
+												key={field.id}
+												className={`db-td${field.id === firstVisibleFieldId ? ' db-td-primary' : ''}`}
+												style={{
+													width: fieldWidth,
+													minWidth: fieldWidth,
+													maxWidth: fieldWidth,
+												}}
 						onClick={(e) => {
 							e.stopPropagation();
+							if (field.type === 'checkbox') {
+								postCommand({
+									type: 'update-record',
+									recordId: record.id,
+									fieldId: field.id,
+									value: record[field.id] !== true,
+								});
+								setEditingCell(null);
+								return;
+							}
 							if (field.type === 'relation') {
 								onOpenRecord(record.id);
 								return;
@@ -418,56 +441,67 @@ export function TableView({
 								onCancel={() => setEditingCell(null)}
 							/>
 						) : (
-							<TableCell
-								record={record}
-								field={field}
-								database={database}
-								relationTitles={relationTitles}
-							/>
+							<>
+								<div className="db-td-content">
+									<TableCell
+										record={record}
+										field={field}
+										database={database}
+										relationTitles={relationTitles}
+										onToggleCheckbox={() => {
+											postCommand({
+												type: 'update-record',
+												recordId: record.id,
+												fieldId: field.id,
+												value: record[field.id] !== true,
+											});
+											setEditingCell(null);
+										}}
+									/>
+								</div>
+								{field.id === firstVisibleFieldId && (
+									<div className="db-row-actions db-row-actions-inline">
+										<button
+											className="db-icon-btn"
+											title="Open record"
+											onClick={(e) => {
+												e.stopPropagation();
+												onOpenRecord(record.id);
+											}}
+										>
+											↗
+										</button>
+										<button
+											className="db-icon-btn"
+											title="Duplicate record"
+											onClick={(e) => {
+												e.stopPropagation();
+												postCommand({ type: 'duplicate-record', recordId: record.id });
+											}}
+										>
+											⧉
+										</button>
+										<button
+											className="db-icon-btn db-icon-btn-danger"
+											title="Delete"
+											onClick={(e) => {
+												e.stopPropagation();
+												postCommand({ type: 'delete-record', recordId: record.id });
+											}}
+										>
+											🗑
+										</button>
+									</div>
+								)}
+							</>
 						)}
+						<div
+							className="db-col-resize-handle db-col-resize-handle-cell"
+							onPointerDown={(e) => startColumnResize(e, field.id, (columnWidths[field.id] ?? (e.currentTarget.parentElement?.getBoundingClientRect().width ?? DEFAULT_COLUMN_WIDTH)))}
+						/>
 					</td>
-				))}
-				<td
-					className="db-td db-td-end"
-					onClick={(e) => {
-						e.stopPropagation();
-						onOpenRecord(record.id);
-					}}
-				/>
-				<td className="db-td db-row-actions-cell" onClick={(e) => e.stopPropagation()}>
-					<div className="db-row-actions">
-						<button
-							className="db-icon-btn"
-							title="Open record"
-							onClick={(e) => {
-								e.stopPropagation();
-								onOpenRecord(record.id);
-							}}
-						>
-							↗
-						</button>
-						<button
-							className="db-icon-btn"
-							title="Duplicate record"
-							onClick={(e) => {
-								e.stopPropagation();
-								postCommand({ type: 'duplicate-record', recordId: record.id });
-							}}
-						>
-							⧉
-						</button>
-						<button
-							className="db-icon-btn db-icon-btn-danger"
-							title="Delete"
-							onClick={(e) => {
-								e.stopPropagation();
-								postCommand({ type: 'delete-record', recordId: record.id });
-							}}
-						>
-							🗑
-						</button>
-					</div>
-				</td>
+											);
+										})}
 			</tr>
 		);
 	}
@@ -506,12 +540,16 @@ export function TableView({
 									onChange={(e) => toggleSelectAll(e.target.checked)}
 								/>
 							</th>
-							{visibleFields.map((field) => (
+							{visibleFields.map((field) => {
+								const fieldWidth = columnWidths[field.id] ?? DEFAULT_COLUMN_WIDTH;
+								return (
 								<th
 									key={field.id}
 									className="db-th"
 									style={{
-										width: columnWidths[field.id] ?? undefined,
+										width: fieldWidth,
+										minWidth: fieldWidth,
+										maxWidth: fieldWidth,
 									}}
 								>
 									<div className="db-th-inner">
@@ -528,10 +566,11 @@ export function TableView({
 									</div>
 									<div
 										className="db-col-resize-handle"
-										onMouseDown={(e) => startColumnResize(e, field.id, (columnWidths[field.id] ?? (e.currentTarget.parentElement?.getBoundingClientRect().width ?? 120)))}
+										onPointerDown={(e) => startColumnResize(e, field.id, (columnWidths[field.id] ?? (e.currentTarget.parentElement?.getBoundingClientRect().width ?? DEFAULT_COLUMN_WIDTH)))}
 									/>
 								</th>
-							))}
+								);
+							})}
 							<th className="db-th db-th-add-field">
 								<button
 									className="db-add-field-btn"
@@ -552,7 +591,7 @@ export function TableView({
 								? grouped.map((group) => (
 										<Fragment key={`fragment-${group.key || 'empty'}`}>
 											<tr key={`group-${group.key}`} className="db-group-header-row">
-												<td colSpan={visibleFields.length + 3} className="db-group-header-cell">
+												<td colSpan={visibleFields.length + 2} className="db-group-header-cell">
 													{groupField?.type === 'status' && group.key ? (
 														<span className="db-group-status-dot" style={{ backgroundColor: getStatusColor(group.key) }} />
 													) : null}
@@ -565,7 +604,7 @@ export function TableView({
 									))
 								: records.map((record) => renderRow(record))}
 							<tr className="db-add-row">
-								<td colSpan={visibleFields.length + 3}>
+								<td colSpan={visibleFields.length + 2}>
 									<button className="db-add-record-btn" onClick={() => postCommand({ type: 'create-record' })}>
 										+ New record
 									</button>

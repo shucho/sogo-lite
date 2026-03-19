@@ -26,6 +26,19 @@ npx sogo-mcp-server
 npm install sogo-db-core
 ```
 
+## Compatibility
+
+Sogo Lite is officially supported in **VS Code stable**.
+
+Other VS Code-based editors and forks are treated as **best effort**. Many work, but webview behavior, custom editor behavior, packaging, and marketplace support can differ between products.
+
+If you hit an issue in a forked editor, please include:
+
+- the editor name
+- the exact editor version
+- the installed Sogo Lite version
+- whether the issue also reproduces in VS Code
+
 ## How It Works
 
 Every database is a single `.db.json` file. Drop one in your project and the extension opens it as an interactive UI — no server, no config, no account.
